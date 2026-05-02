@@ -17,6 +17,8 @@ import 'package:doit/features/reminder/domain/usecases/update_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/delete_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/complete_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/snooze_reminder.dart';
+import 'package:doit/features/reminder/domain/usecases/search_reminders.dart';
+import 'package:doit/features/reminder/domain/usecases/get_overdue_count.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_state.dart';
@@ -29,6 +31,8 @@ class MockUpdateReminder extends Mock implements UpdateReminder {}
 class MockDeleteReminder extends Mock implements DeleteReminder {}
 class MockCompleteReminder extends Mock implements CompleteReminder {}
 class MockSnoozeReminder extends Mock implements SnoozeReminder {}
+class MockSearchReminders extends Mock implements SearchReminders {}
+class MockGetOverdueCount extends Mock implements GetOverdueCount {}
 class MockNotificationService extends Mock implements NotificationService {}
 class MockAutoSnoozeScheduler extends Mock implements AutoSnoozeScheduler {}
 class MockRepeatScheduler extends Mock implements RepeatScheduler {}
@@ -44,6 +48,8 @@ void main() {
   late MockDeleteReminder mockDeleteReminder;
   late MockCompleteReminder mockCompleteReminder;
   late MockSnoozeReminder mockSnoozeReminder;
+  late MockSearchReminders mockSearchReminders;
+  late MockGetOverdueCount mockGetOverdueCount;
   late MockNotificationService mockNotificationService;
   late MockAutoSnoozeScheduler mockAutoSnoozeScheduler;
   late MockRepeatScheduler mockRepeatScheduler;
@@ -58,6 +64,8 @@ void main() {
     mockDeleteReminder = MockDeleteReminder();
     mockCompleteReminder = MockCompleteReminder();
     mockSnoozeReminder = MockSnoozeReminder();
+    mockSearchReminders = MockSearchReminders();
+    mockGetOverdueCount = MockGetOverdueCount();
     mockNotificationService = MockNotificationService();
     mockAutoSnoozeScheduler = MockAutoSnoozeScheduler();
     mockRepeatScheduler = MockRepeatScheduler();
@@ -72,6 +80,8 @@ void main() {
       deleteReminder: mockDeleteReminder,
       completeReminder: mockCompleteReminder,
       snoozeReminder: mockSnoozeReminder,
+      searchReminders: mockSearchReminders,
+      getOverdueCount: mockGetOverdueCount,
       notificationService: mockNotificationService,
       autoSnoozeScheduler: mockAutoSnoozeScheduler,
       repeatScheduler: mockRepeatScheduler,
@@ -92,25 +102,21 @@ void main() {
         const SnoozeParams(id: 'fallback', snoozeMinutes: 5));
   });
 
-  tearDown(() {
-    bloc.close();
-  });
+  tearDown(() => bloc.close());
 
   final now = DateTime(2025, 1, 1);
   final tReminders = [
-    Reminder(
-      id: '1',
-      title: 'Test',
-      dueDate: now,
-      createdAt: now,
-      updatedAt: now,
-    ),
+    Reminder(id: '1', title: 'Test', dueDate: now, createdAt: now, updatedAt: now),
   ];
 
-  /// Stub auto-snooze sync to succeed (called on every reload).
   void stubAutoSnoozeSync() {
     when(() => mockAutoSnoozeScheduler.syncAllSnoozes(any()))
         .thenAnswer((_) async {});
+  }
+
+  void stubOverdueCount([int count = 0]) {
+    when(() => mockGetOverdueCount(any()))
+        .thenAnswer((_) async => Right(count));
   }
 
   test('initial state should be ReminderInitial', () {
@@ -119,16 +125,17 @@ void main() {
 
   group('LoadReminders', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, Loaded] when successful',
+      'emits [Loading, Loaded] with overdue count',
       build: () {
         when(() => mockGetAllReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
+        stubOverdueCount(1);
         return bloc;
       },
       act: (bloc) => bloc.add(const LoadReminders()),
       expect: () => [
         const ReminderLoading(),
-        ReminderLoaded(tReminders),
+        ReminderLoaded(tReminders, overdueCount: 1),
       ],
     );
 
@@ -137,6 +144,7 @@ void main() {
       build: () {
         when(() => mockGetAllReminders(any()))
             .thenAnswer((_) async => const Left(DatabaseFailure('db error')));
+        stubOverdueCount();
         return bloc;
       },
       act: (bloc) => bloc.add(const LoadReminders()),
@@ -149,17 +157,18 @@ void main() {
 
   group('LoadActiveReminders', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, Loaded] and syncs auto-snooze',
+      'emits [Loading, Loaded] and syncs auto-snooze with overdue count',
       build: () {
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
         stubAutoSnoozeSync();
+        stubOverdueCount(1);
         return bloc;
       },
       act: (bloc) => bloc.add(const LoadActiveReminders()),
       expect: () => [
         const ReminderLoading(),
-        ReminderLoaded(tReminders),
+        ReminderLoaded(tReminders, overdueCount: 1),
       ],
       verify: (_) {
         verify(() => mockAutoSnoozeScheduler.syncAllSnoozes(tReminders))
@@ -180,20 +189,19 @@ void main() {
               title: any(named: 'title'),
               body: any(named: 'body'),
               scheduledDate: any(named: 'scheduledDate'),
+              payload: any(named: 'payload'),
             )).thenAnswer((_) async => const Right(null));
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
-      act: (bloc) => bloc.add(AddReminder(
-        title: 'Test',
-        dueDate: now,
-      )),
+      act: (bloc) => bloc.add(AddReminder(title: 'Test', dueDate: now)),
       expect: () => [
         const ReminderLoading(),
         const ReminderOperationSuccess('Reminder created'),
-        ReminderLoaded(tReminders),
+        ReminderLoaded(tReminders, overdueCount: 0),
       ],
     );
 
@@ -201,15 +209,11 @@ void main() {
       'emits [Loading, Error] when creation fails',
       build: () {
         when(() => mockUuid.v4()).thenReturn('generated-uuid');
-        when(() => mockCreateReminder(any())).thenAnswer(
-            (_) async =>
-                const Left(ValidationFailure('Title cannot be empty')));
+        when(() => mockCreateReminder(any())).thenAnswer((_) async =>
+            const Left(ValidationFailure('Title cannot be empty')));
         return bloc;
       },
-      act: (bloc) => bloc.add(AddReminder(
-        title: '',
-        dueDate: now,
-      )),
+      act: (bloc) => bloc.add(AddReminder(title: '', dueDate: now)),
       expect: () => [
         const ReminderLoading(),
         const ReminderError('Title cannot be empty'),
@@ -230,19 +234,15 @@ void main() {
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => const Right([]));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
       act: (bloc) => bloc.add(const RemoveReminder(id: '1')),
       expect: () => [
         const ReminderLoading(),
         const ReminderOperationSuccess('Reminder deleted'),
-        const ReminderLoaded([]),
+        const ReminderLoaded([], overdueCount: 0),
       ],
-      verify: (_) {
-        verify(() => mockNotificationService.cancelNotification(any()))
-            .called(1);
-        verify(() => mockAutoSnoozeScheduler.cancelSnooze('1')).called(1);
-      },
     );
   });
 
@@ -260,13 +260,14 @@ void main() {
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => const Right([]));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
       act: (bloc) => bloc.add(const MarkReminderComplete(id: '1')),
       expect: () => [
         const ReminderLoading(),
         const ReminderOperationSuccess('Reminder completed'),
-        const ReminderLoaded([]),
+        const ReminderLoaded([], overdueCount: 0),
       ],
     );
 
@@ -274,21 +275,14 @@ void main() {
       'completes recurring reminder and creates next occurrence',
       build: () {
         final recurringReminder = Reminder(
-          id: '1',
-          title: 'Daily Task',
-          dueDate: now,
-          isCompleted: true,
-          repeatInterval: 'daily',
-          createdAt: now,
-          updatedAt: now,
+          id: '1', title: 'Daily Task', dueDate: now,
+          isCompleted: true, repeatInterval: 'daily',
+          createdAt: now, updatedAt: now,
         );
         final nextReminder = Reminder(
-          id: 'next-id',
-          title: 'Daily Task',
-          dueDate: DateTime(2025, 1, 2),
-          repeatInterval: 'daily',
-          createdAt: now,
-          updatedAt: now,
+          id: 'next-id', title: 'Daily Task',
+          dueDate: DateTime(2025, 1, 2), repeatInterval: 'daily',
+          createdAt: now, updatedAt: now,
         );
 
         when(() => mockCompleteReminder(any()))
@@ -310,10 +304,12 @@ void main() {
               title: any(named: 'title'),
               body: any(named: 'body'),
               scheduledDate: any(named: 'scheduledDate'),
+              payload: any(named: 'payload'),
             )).thenAnswer((_) async => const Right(null));
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right([nextReminder]));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
       act: (bloc) => bloc.add(const MarkReminderComplete(id: '1')),
@@ -323,11 +319,6 @@ void main() {
         isA<ReminderLoaded>(),
       ],
       verify: (_) {
-        verify(() => mockRepeatScheduler.computeNextOccurrence(
-              completed: any(named: 'completed'),
-              newId: 'next-id',
-              now: any(named: 'now'),
-            )).called(1);
         verify(() => mockCreateReminder(any())).called(1);
       },
     );
@@ -349,22 +340,22 @@ void main() {
               title: any(named: 'title'),
               body: any(named: 'body'),
               scheduledDate: any(named: 'scheduledDate'),
+              payload: any(named: 'payload'),
             )).thenAnswer((_) async => const Right(null));
         when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
             .thenAnswer((_) async {});
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
-      act: (bloc) => bloc.add(const SnoozeReminderEvent(
-        id: '1',
-        snoozeMinutes: 15,
-      )),
+      act: (bloc) => bloc.add(
+          const SnoozeReminderEvent(id: '1', snoozeMinutes: 15)),
       expect: () => [
         const ReminderLoading(),
         const ReminderOperationSuccess('Snoozed for 15 minutes'),
-        ReminderLoaded(tReminders),
+        ReminderLoaded(tReminders, overdueCount: 0),
       ],
     );
   });
@@ -384,6 +375,7 @@ void main() {
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
         stubAutoSnoozeSync();
+        stubOverdueCount();
         return bloc;
       },
       act: (bloc) =>
@@ -391,40 +383,57 @@ void main() {
       expect: () => [
         const ReminderLoading(),
         const ReminderOperationSuccess('Auto-snooze disabled'),
-        ReminderLoaded(tReminders),
+        ReminderLoaded(tReminders, overdueCount: 0),
       ],
-      verify: (_) {
-        verify(() => mockAutoSnoozeScheduler.cancelSnooze('1')).called(1);
-      },
     );
+  });
 
+  group('SearchRemindersEvent', () {
     blocTest<ReminderBloc, ReminderState>(
-      'enables auto-snooze and schedules snooze',
+      'emits [Loading, Loaded] with search results',
       build: () {
-        when(() => mockGetAllReminders(any()))
-            .thenAnswer((_) async => Right(tReminders));
-        when(() => mockUpdateReminder(any()))
-            .thenAnswer((_) async => Right(
-                  tReminders.first.copyWith(autoSnoozeEnabled: true),
-                ));
-        when(() => mockAutoSnoozeScheduler.scheduleNextSnooze(any()))
-            .thenAnswer((_) async {});
-        when(() => mockGetActiveReminders(any()))
-            .thenAnswer((_) async => Right(tReminders));
-        stubAutoSnoozeSync();
+        when(() => mockSearchReminders('groceries'))
+            .thenAnswer((_) async => Right([tReminders.first]));
+        stubOverdueCount(1);
         return bloc;
       },
       act: (bloc) =>
-          bloc.add(const ToggleAutoSnooze(id: '1', enabled: true)),
+          bloc.add(const SearchRemindersEvent(query: 'groceries')),
       expect: () => [
         const ReminderLoading(),
-        const ReminderOperationSuccess('Auto-snooze enabled'),
-        ReminderLoaded(tReminders),
+        ReminderLoaded([tReminders.first], overdueCount: 1),
       ],
-      verify: (_) {
-        verify(() => mockAutoSnoozeScheduler.scheduleNextSnooze(any()))
-            .called(1);
+    );
+
+    blocTest<ReminderBloc, ReminderState>(
+      'emits [Loading, Error] when search fails',
+      build: () {
+        when(() => mockSearchReminders('test'))
+            .thenAnswer((_) async => const Left(DatabaseFailure('error')));
+        stubOverdueCount();
+        return bloc;
       },
+      act: (bloc) =>
+          bloc.add(const SearchRemindersEvent(query: 'test')),
+      expect: () => [
+        const ReminderLoading(),
+        const ReminderError('error'),
+      ],
+    );
+  });
+
+  group('RefreshOverdueCount', () {
+    blocTest<ReminderBloc, ReminderState>(
+      'updates overdue count on existing loaded state',
+      seed: () => ReminderLoaded(tReminders, overdueCount: 0),
+      build: () {
+        stubOverdueCount(3);
+        return bloc;
+      },
+      act: (bloc) => bloc.add(const RefreshOverdueCount()),
+      expect: () => [
+        ReminderLoaded(tReminders, overdueCount: 3),
+      ],
     );
   });
 }

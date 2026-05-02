@@ -5,15 +5,10 @@ import 'package:doit/features/reminder/domain/entities/reminder.dart';
 /// Concrete auto-snooze scheduler.
 /// For each overdue reminder with auto-snooze enabled, schedules the next
 /// notification [autoSnoozeInterval] minutes from now.
-///
-/// Uses a deterministic ID offset so auto-snooze notification IDs don't
-/// collide with the initial due-date notification IDs.
 class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
   final NotificationService notificationService;
   final DateTime Function() _now;
 
-  /// Offset added to the reminder's notification ID to create a separate
-  /// auto-snooze notification ID space.
   static const int autoSnoozeIdOffset = 100000;
 
   AutoSnoozeSchedulerImpl({
@@ -29,10 +24,7 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
     }
 
     final currentTime = _now();
-    if (!reminder.isOverdue(currentTime)) {
-      // Not overdue yet — no nagging needed.
-      return;
-    }
+    if (!reminder.isOverdue(currentTime)) return;
 
     final notificationId = _autoSnoozeNotificationId(reminder.id);
     final nextSnoozeTime = currentTime.add(
@@ -45,6 +37,7 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
       body: 'Overdue! Tap to complete or snooze.',
       startDate: nextSnoozeTime,
       intervalMinutes: reminder.autoSnoozeInterval,
+      payload: reminder.id,
     );
   }
 
@@ -65,8 +58,6 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
     }
   }
 
-  /// Derive a stable int notification ID from the reminder's string ID.
-  /// Uses hashCode with an offset to avoid collisions with due-date notifications.
   int _autoSnoozeNotificationId(String reminderId) {
     return reminderId.hashCode.abs() + autoSnoozeIdOffset;
   }

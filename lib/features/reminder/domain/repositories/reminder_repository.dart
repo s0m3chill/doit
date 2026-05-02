@@ -8,6 +8,7 @@ abstract class ReminderRepository {
   Future<Either<Failure, List<Reminder>>> getAllReminders();
   Future<Either<Failure, List<Reminder>>> getActiveReminders();
   Future<Either<Failure, List<Reminder>>> getCompletedReminders();
+  Future<Either<Failure, List<Reminder>>> searchReminders(String query);
   Future<Either<Failure, Reminder>> getReminderById(String id);
   Future<Either<Failure, Reminder>> createReminder(Reminder reminder);
   Future<Either<Failure, Reminder>> updateReminder(Reminder reminder);

@@ -15,4 +15,20 @@ class AppConstants {
   static const String repeatWeekly = 'weekly';
   static const String repeatMonthly = 'monthly';
   static const String repeatYearly = 'yearly';
+
+  // Notification sound options
+  static const List<(String, String)> notificationSounds = [
+    ('default', 'Default'),
+    ('gentle', 'Gentle'),
+    ('urgent', 'Urgent'),
+    ('none', 'Silent'),
+  ];
+
+  // Haptic intensity options
+  static const List<(String, String)> hapticIntensities = [
+    ('light', 'Light'),
+    ('medium', 'Medium'),
+    ('heavy', 'Heavy'),
+    ('none', 'Off'),
+  ];
 }

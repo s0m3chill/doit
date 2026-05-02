@@ -51,6 +51,21 @@ class ReminderLocalDataSourceImpl implements ReminderLocalDataSource {
   }
 
   @override
+  Future<List<ReminderModel>> searchReminders(String query) async {
+    try {
+      final maps = await database.query(
+        tableName,
+        where: 'title LIKE ?',
+        whereArgs: ['%$query%'],
+        orderBy: 'due_date ASC',
+      );
+      return maps.map((map) => ReminderModel.fromMap(map)).toList();
+    } catch (e) {
+      throw DatabaseException('Failed to search reminders: $e');
+    }
+  }
+
+  @override
   Future<ReminderModel> getReminderById(String id) async {
     try {
       final maps = await database.query(

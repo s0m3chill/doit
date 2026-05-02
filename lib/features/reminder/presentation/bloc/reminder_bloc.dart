@@ -14,6 +14,8 @@ import 'package:doit/features/reminder/domain/usecases/update_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/delete_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/complete_reminder.dart';
 import 'package:doit/features/reminder/domain/usecases/snooze_reminder.dart';
+import 'package:doit/features/reminder/domain/usecases/search_reminders.dart';
+import 'package:doit/features/reminder/domain/usecases/get_overdue_count.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_state.dart';
 
@@ -26,6 +28,8 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
   final DeleteReminder deleteReminder;
   final CompleteReminder completeReminder;
   final SnoozeReminder snoozeReminder;
+  final SearchReminders searchReminders;
+  final GetOverdueCount getOverdueCount;
   final NotificationService notificationService;
   final AutoSnoozeScheduler autoSnoozeScheduler;
   final RepeatScheduler repeatScheduler;
@@ -40,6 +44,8 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     required this.deleteReminder,
     required this.completeReminder,
     required this.snoozeReminder,
+    required this.searchReminders,
+    required this.getOverdueCount,
     required this.notificationService,
     required this.autoSnoozeScheduler,
     required this.repeatScheduler,
@@ -55,6 +61,8 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     on<MarkReminderComplete>(_onMarkReminderComplete);
     on<SnoozeReminderEvent>(_onSnoozeReminder);
     on<ToggleAutoSnooze>(_onToggleAutoSnooze);
+    on<SearchRemindersEvent>(_onSearchReminders);
+    on<RefreshOverdueCount>(_onRefreshOverdueCount);
   }
 
   Future<void> _onLoadReminders(
@@ -63,9 +71,12 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
   ) async {
     emit(const ReminderLoading());
     final result = await getAllReminders(const NoParams());
+    final overdueResult = await getOverdueCount(const NoParams());
+    final overdueCount = overdueResult.getOrElse(() => 0);
     result.fold(
       (failure) => emit(ReminderError(failure.message)),
-      (reminders) => emit(ReminderLoaded(reminders)),
+      (reminders) =>
+          emit(ReminderLoaded(reminders, overdueCount: overdueCount)),
     );
   }
 
@@ -78,9 +89,10 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (reminders) async {
-        // Sync auto-snooze state on every load.
         await autoSnoozeScheduler.syncAllSnoozes(reminders);
-        emit(ReminderLoaded(reminders));
+        final overdueResult = await getOverdueCount(const NoParams());
+        final overdueCount = overdueResult.getOrElse(() => 0);
+        emit(ReminderLoaded(reminders, overdueCount: overdueCount));
       },
     );
   }
@@ -117,7 +129,6 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (created) async {
-        // Schedule the initial due-date notification.
         await _scheduleNotification(created);
         emit(const ReminderOperationSuccess('Reminder created'));
         await _reloadActive(emit);
@@ -145,7 +156,6 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (updated) async {
-        // Reschedule notification with new time.
         await _cancelNotification(updated.id);
         await _scheduleNotification(updated);
         emit(const ReminderOperationSuccess('Reminder updated'));
@@ -159,7 +169,6 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     Emitter<ReminderState> emit,
   ) async {
     emit(const ReminderLoading());
-    // Cancel all notifications for this reminder.
     await _cancelNotification(event.id);
     await autoSnoozeScheduler.cancelSnooze(event.id);
 
@@ -182,11 +191,9 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (completed) async {
-        // Cancel notifications for the completed reminder.
         await _cancelNotification(completed.id);
         await autoSnoozeScheduler.cancelSnooze(completed.id);
 
-        // If recurring, auto-create the next occurrence.
         if (completed.isRecurring) {
           final next = repeatScheduler.computeNextOccurrence(
             completed: completed,
@@ -221,7 +228,6 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (snoozed) async {
-        // Reschedule notification to the new due date.
         await _cancelNotification(snoozed.id);
         await _scheduleNotification(snoozed);
         await autoSnoozeScheduler.cancelSnooze(snoozed.id);
@@ -238,7 +244,6 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     Emitter<ReminderState> emit,
   ) async {
     emit(const ReminderLoading());
-    // We need to fetch the current reminder, toggle the flag, and update.
     final getResult = await getAllReminders(const NoParams());
     await getResult.fold(
       (failure) async => emit(ReminderError(failure.message)),
@@ -271,6 +276,34 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     );
   }
 
+  Future<void> _onSearchReminders(
+    SearchRemindersEvent event,
+    Emitter<ReminderState> emit,
+  ) async {
+    emit(const ReminderLoading());
+    final result = await searchReminders(event.query);
+    final overdueResult = await getOverdueCount(const NoParams());
+    final overdueCount = overdueResult.getOrElse(() => 0);
+    result.fold(
+      (failure) => emit(ReminderError(failure.message)),
+      (reminders) =>
+          emit(ReminderLoaded(reminders, overdueCount: overdueCount)),
+    );
+  }
+
+  Future<void> _onRefreshOverdueCount(
+    RefreshOverdueCount event,
+    Emitter<ReminderState> emit,
+  ) async {
+    final currentState = state;
+    final overdueResult = await getOverdueCount(const NoParams());
+    final overdueCount = overdueResult.getOrElse(() => 0);
+    if (currentState is ReminderLoaded) {
+      emit(ReminderLoaded(currentState.reminders,
+          overdueCount: overdueCount));
+    }
+  }
+
   // ── Helpers ──
 
   Future<void> _scheduleNotification(Reminder reminder) async {
@@ -280,6 +313,7 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
         title: 'DoIt: ${reminder.title}',
         body: 'Time to do it!',
         scheduledDate: reminder.dueDate,
+        payload: reminder.id,
       );
     }
   }
@@ -295,7 +329,9 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
       (failure) async => emit(ReminderError(failure.message)),
       (reminders) async {
         await autoSnoozeScheduler.syncAllSnoozes(reminders);
-        emit(ReminderLoaded(reminders));
+        final overdueResult = await getOverdueCount(const NoParams());
+        final overdueCount = overdueResult.getOrElse(() => 0);
+        emit(ReminderLoaded(reminders, overdueCount: overdueCount));
       },
     );
   }

@@ -3,13 +3,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:doit/core/error/failures.dart';
 import 'package:doit/core/services/notification_service.dart';
+import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
 
 /// Concrete implementation using flutter_local_notifications.
-/// Single responsibility: translate domain notification requests into platform calls.
+/// Respects user's haptic/sound settings when building notification details.
 class NotificationServiceImpl implements NotificationService {
   final FlutterLocalNotificationsPlugin plugin;
 
-  /// Notification action identifiers for interactive notifications.
   static const String completeActionId = 'complete';
   static const String snooze1ActionId = 'snooze_1';
   static const String snooze5ActionId = 'snooze_5';
@@ -21,7 +21,10 @@ class NotificationServiceImpl implements NotificationService {
   NotificationServiceImpl({required this.plugin});
 
   @override
-  Future<Either<Failure, void>> initialize() async {
+  Future<Either<Failure, void>> initialize({
+    NotificationActionCallback? onAction,
+    NotificationTapCallback? onTap,
+  }) async {
     try {
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -54,10 +57,23 @@ class NotificationServiceImpl implements NotificationService {
         iOS: darwinSettings,
       );
 
-      await plugin.initialize(settings);
+      await plugin.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (response) async {
+          final payload = response.payload;
+          final actionId = response.actionId;
+
+          if (actionId != null && actionId.isNotEmpty && onAction != null) {
+            await onAction(actionId, payload);
+          } else if (onTap != null) {
+            await onTap(payload);
+          }
+        },
+      );
       return const Right(null);
     } catch (e) {
-      return Left(NotificationFailure('Failed to initialize notifications: $e'));
+      return Left(
+          NotificationFailure('Failed to initialize notifications: $e'));
     }
   }
 
@@ -67,6 +83,8 @@ class NotificationServiceImpl implements NotificationService {
     required String title,
     required String body,
     required DateTime scheduledDate,
+    String? payload,
+    HapticSoundSettings? settings,
   }) async {
     try {
       final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
@@ -76,15 +94,17 @@ class NotificationServiceImpl implements NotificationService {
         title,
         body,
         tzScheduledDate,
-        _notificationDetails(),
+        _notificationDetails(settings),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: null,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
       );
       return const Right(null);
     } catch (e) {
-      return Left(NotificationFailure('Failed to schedule notification: $e'));
+      return Left(
+          NotificationFailure('Failed to schedule notification: $e'));
     }
   }
 
@@ -95,6 +115,8 @@ class NotificationServiceImpl implements NotificationService {
     required String body,
     required DateTime startDate,
     required int intervalMinutes,
+    String? payload,
+    HapticSoundSettings? settings,
   }) async {
     try {
       final tzStartDate = tz.TZDateTime.from(startDate, tz.local);
@@ -104,11 +126,12 @@ class NotificationServiceImpl implements NotificationService {
         title,
         body,
         tzStartDate,
-        _notificationDetails(),
+        _notificationDetails(settings),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: null,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        payload: payload,
       );
       return const Right(null);
     } catch (e) {
@@ -123,7 +146,8 @@ class NotificationServiceImpl implements NotificationService {
       await plugin.cancel(id);
       return const Right(null);
     } catch (e) {
-      return Left(NotificationFailure('Failed to cancel notification: $e'));
+      return Left(
+          NotificationFailure('Failed to cancel notification: $e'));
     }
   }
 
@@ -138,21 +162,30 @@ class NotificationServiceImpl implements NotificationService {
     }
   }
 
-  NotificationDetails _notificationDetails() {
-    return const NotificationDetails(
+  /// Build notification details respecting user's sound/vibration preferences.
+  NotificationDetails _notificationDetails(HapticSoundSettings? settings) {
+    final playSound = settings?.soundEnabled ?? true;
+    final enableVibration = settings?.vibrationEnabled ?? true;
+    final soundName = settings?.notificationSound ?? 'default';
+    final presentSound = playSound && soundName != 'none';
+
+    return NotificationDetails(
       android: AndroidNotificationDetails(
         'doit_reminders',
         'Reminders',
         channelDescription: 'DoIt reminder notifications',
         importance: Importance.high,
         priority: Priority.high,
-        playSound: true,
-        enableVibration: true,
+        playSound: presentSound,
+        enableVibration: enableVibration,
+        sound: presentSound && soundName != 'default'
+            ? RawResourceAndroidNotificationSound(soundName)
+            : null,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
-        presentSound: true,
+        presentSound: presentSound,
         categoryIdentifier: reminderCategoryId,
       ),
     );

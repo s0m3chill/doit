@@ -44,6 +44,17 @@ class ReminderRepositoryImpl implements ReminderRepository {
   }
 
   @override
+  Future<Either<Failure, List<Reminder>>> searchReminders(
+      String query) async {
+    try {
+      final reminders = await localDataSource.searchReminders(query);
+      return Right(reminders);
+    } on DatabaseException catch (e) {
+      return Left(DatabaseFailure(e.message));
+    }
+  }
+
+  @override
   Future<Either<Failure, Reminder>> getReminderById(String id) async {
     try {
       final reminder = await localDataSource.getReminderById(id);

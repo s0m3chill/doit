@@ -102,3 +102,18 @@ class ToggleAutoSnooze extends ReminderEvent {
   @override
   List<Object?> get props => [id, enabled];
 }
+
+/// Search reminders by title.
+class SearchRemindersEvent extends ReminderEvent {
+  final String query;
+
+  const SearchRemindersEvent({required this.query});
+
+  @override
+  List<Object?> get props => [query];
+}
+
+/// Refresh the overdue badge count.
+class RefreshOverdueCount extends ReminderEvent {
+  const RefreshOverdueCount();
+}

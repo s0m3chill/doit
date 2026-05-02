@@ -6,6 +6,7 @@ abstract class ReminderLocalDataSource {
   Future<List<ReminderModel>> getAllReminders();
   Future<List<ReminderModel>> getActiveReminders();
   Future<List<ReminderModel>> getCompletedReminders();
+  Future<List<ReminderModel>> searchReminders(String query);
   Future<ReminderModel> getReminderById(String id);
   Future<ReminderModel> createReminder(ReminderModel reminder);
   Future<ReminderModel> updateReminder(ReminderModel reminder);

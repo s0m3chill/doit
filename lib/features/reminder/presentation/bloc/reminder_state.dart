@@ -18,11 +18,12 @@ class ReminderLoading extends ReminderState {
 
 class ReminderLoaded extends ReminderState {
   final List<Reminder> reminders;
+  final int overdueCount;
 
-  const ReminderLoaded(this.reminders);
+  const ReminderLoaded(this.reminders, {this.overdueCount = 0});
 
   @override
-  List<Object?> get props => [reminders];
+  List<Object?> get props => [reminders, overdueCount];
 }
 
 class ReminderOperationSuccess extends ReminderState {
