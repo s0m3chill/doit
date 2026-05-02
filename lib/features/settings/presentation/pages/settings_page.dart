@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/core/constants/app_constants.dart';
 import 'package:doit/features/settings/domain/services/theme_color_palette.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_bloc.dart';
@@ -13,6 +14,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return SafeArea(
       child: BlocBuilder<SettingsBloc, SettingsState>(
@@ -27,6 +29,38 @@ class SettingsPage extends StatelessWidget {
 
           final settings = state.settings;
 
+          // Map persisted sound values to l10n labels
+          String soundLabel(String value) {
+            switch (value) {
+              case 'default':
+                return l10n.soundDefault;
+              case 'gentle':
+                return l10n.soundGentle;
+              case 'urgent':
+                return l10n.soundUrgent;
+              case 'none':
+                return l10n.soundSilent;
+              default:
+                return value;
+            }
+          }
+
+          // Map persisted haptic values to l10n labels
+          String hapticLabel(String value) {
+            switch (value) {
+              case 'light':
+                return l10n.hapticLight;
+              case 'medium':
+                return l10n.hapticMedium;
+              case 'heavy':
+                return l10n.hapticHeavy;
+              case 'none':
+                return l10n.hapticOff;
+              default:
+                return value;
+            }
+          }
+
           return ListView(
             padding: const EdgeInsets.only(bottom: 32),
             children: [
@@ -35,7 +69,7 @@ class SettingsPage extends StatelessWidget {
                 padding: const EdgeInsets.only(
                     left: 20, right: 20, top: 16, bottom: 12),
                 child: Text(
-                  'Settings',
+                  l10n.settingsTitle,
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -43,7 +77,7 @@ class SettingsPage extends StatelessWidget {
               ),
 
               // ── Appearance ──
-              _SectionHeader(title: 'Appearance'),
+              _SectionHeader(title: l10n.appearance),
               _SettingsCard(
                 children: [
                   // Theme mode
@@ -52,18 +86,18 @@ class SettingsPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Theme',
+                        Text(l10n.theme,
                             style: theme.textTheme.labelMedium?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 10),
                         SegmentedButton<String>(
-                          segments: const [
+                          segments: [
                             ButtonSegment(
-                                value: 'system', label: Text('System')),
+                                value: 'system', label: Text(l10n.themeSystem)),
                             ButtonSegment(
-                                value: 'light', label: Text('Light')),
+                                value: 'light', label: Text(l10n.themeLight)),
                             ButtonSegment(
-                                value: 'dark', label: Text('Dark')),
+                                value: 'dark', label: Text(l10n.themeDark)),
                           ],
                           selected: {settings.theme.themeMode},
                           onSelectionChanged: (sel) {
@@ -85,7 +119,7 @@ class SettingsPage extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Accent color',
+                      Text(l10n.accentColor,
                           style: theme.textTheme.labelMedium?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant)),
                       const SizedBox(height: 12),
@@ -103,13 +137,13 @@ class SettingsPage extends StatelessWidget {
               ),
 
               // ── Notifications ──
-              _SectionHeader(title: 'Notifications'),
+              _SectionHeader(title: l10n.notifications),
               _SettingsCard(
                 children: [
                   // Sound toggle
                   SwitchListTile(
-                    title: const Text('Sound'),
-                    subtitle: const Text('Play sound on notification'),
+                    title: Text(l10n.sound),
+                    subtitle: Text(l10n.soundDescription),
                     value: settings.hapticSound.soundEnabled,
                     onChanged: (v) {
                       context
@@ -126,9 +160,9 @@ class SettingsPage extends StatelessWidget {
                         spacing: 8,
                         children:
                             AppConstants.notificationSounds.map((entry) {
-                          final (value, label) = entry;
+                          final (value, _) = entry;
                           return ChoiceChip(
-                            label: Text(label),
+                            label: Text(soundLabel(value)),
                             selected:
                                 settings.hapticSound.notificationSound ==
                                     value,
@@ -145,8 +179,8 @@ class SettingsPage extends StatelessWidget {
                   const Divider(height: 1),
                   // Vibration toggle
                   SwitchListTile(
-                    title: const Text('Vibration'),
-                    subtitle: const Text('Haptic feedback on actions'),
+                    title: Text(l10n.vibration),
+                    subtitle: Text(l10n.vibrationDescription),
                     value: settings.hapticSound.vibrationEnabled,
                     onChanged: (v) {
                       context
@@ -163,9 +197,9 @@ class SettingsPage extends StatelessWidget {
                         spacing: 8,
                         children:
                             AppConstants.hapticIntensities.map((entry) {
-                          final (value, label) = entry;
+                          final (value, _) = entry;
                           return ChoiceChip(
-                            label: Text(label),
+                            label: Text(hapticLabel(value)),
                             selected:
                                 settings.hapticSound.hapticIntensity ==
                                     value,
@@ -184,23 +218,25 @@ class SettingsPage extends StatelessWidget {
               ),
 
               // ── About ──
-              _SectionHeader(title: 'About'),
+              _SectionHeader(title: l10n.about),
               _SettingsCard(
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(AppConstants.appName,
+                    title: Text(l10n.appName,
                         style: theme.textTheme.titleMedium),
-                    subtitle: const Text('Version 1.0.0'),
-                    leading: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primaryContainer,
-                        borderRadius: BorderRadius.circular(10),
+                    subtitle: Text(l10n.version('1.0.0')),
+                    leading: ExcludeSemantics(
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(Icons.check_circle,
+                            color: theme.colorScheme.onPrimaryContainer),
                       ),
-                      child: Icon(Icons.check_circle,
-                          color: theme.colorScheme.onPrimaryContainer),
                     ),
                   ),
                 ],
@@ -307,7 +343,9 @@ class _ColorGrid extends StatelessWidget {
                     : null,
               ),
               child: isSelected
-                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  ? const ExcludeSemantics(
+                      child: Icon(Icons.check, color: Colors.white, size: 20),
+                    )
                   : null,
             ),
           ),

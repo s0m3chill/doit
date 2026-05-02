@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/core/constants/app_constants.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
@@ -52,14 +53,15 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Reminder' : 'New Reminder'),
+        title: Text(_isEditing ? l10n.editReminder : l10n.newReminder),
         actions: [
           FilledButton(
             onPressed: _canSave ? _save : null,
-            child: Text(_isEditing ? 'Save' : 'Add'),
+            child: Text(_isEditing ? l10n.save : l10n.add),
           ),
           const SizedBox(width: 12),
         ],
@@ -77,7 +79,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
                 textCapitalization: TextCapitalization.sentences,
                 style: theme.textTheme.titleMedium,
                 decoration: InputDecoration(
-                  hintText: 'What do you need to do?',
+                  hintText: l10n.titleHint,
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
@@ -146,11 +148,11 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SwitchListTile(
-                    title: const Text('Auto-snooze'),
+                    title: Text(l10n.autoSnooze),
                     subtitle: Text(
                       _autoSnoozeEnabled
-                          ? 'Nags every $_autoSnoozeInterval min when overdue'
-                          : 'Disabled',
+                          ? l10n.autoSnoozeDescription(_autoSnoozeInterval)
+                          : l10n.autoSnoozeDisabled,
                     ),
                     value: _autoSnoozeEnabled,
                     onChanged: (v) => setState(() => _autoSnoozeEnabled = v),
@@ -158,7 +160,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
                   ),
                   if (_autoSnoozeEnabled) ...[
                     const SizedBox(height: 4),
-                    Text('Interval',
+                    Text(l10n.interval,
                         style: theme.textTheme.labelMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
@@ -177,7 +179,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    Text('Max nags',
+                    Text(l10n.maxNags,
                         style: theme.textTheme.labelMedium?.copyWith(
                             color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
@@ -292,38 +294,47 @@ class _DateTimeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final formatted = value != null
         ? DateFormat.yMMMd().add_jm().format(value!)
-        : 'Tap to pick date & time';
+        : l10n.tapToPickDate;
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(Icons.calendar_today,
-              color: colorScheme.primary, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Due date', style: theme.textTheme.labelMedium),
-                const SizedBox(height: 2),
-                Text(
-                  formatted,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: value != null
-                        ? colorScheme.primary
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+    return Semantics(
+      label: '${l10n.dueDate}, $formatted',
+      button: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Row(
+          children: [
+            ExcludeSemantics(
+              child: Icon(Icons.calendar_today,
+                  color: colorScheme.primary, size: 20),
             ),
-          ),
-          Icon(Icons.edit_calendar,
-              size: 18, color: colorScheme.onSurfaceVariant),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(l10n.dueDate, style: theme.textTheme.labelMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    formatted,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: value != null
+                          ? colorScheme.primary
+                          : colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ExcludeSemantics(
+              child: Icon(Icons.edit_calendar,
+                  size: 18, color: colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -337,28 +348,30 @@ class _RepeatSelector extends StatelessWidget {
 
   const _RepeatSelector({required this.value, required this.onChanged});
 
-  static const _intervals = [
-    (AppConstants.repeatNone, 'None'),
-    (AppConstants.repeatDaily, 'Daily'),
-    (AppConstants.repeatWeekly, 'Weekly'),
-    (AppConstants.repeatMonthly, 'Monthly'),
-    (AppConstants.repeatYearly, 'Yearly'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
+    final intervals = [
+      (AppConstants.repeatNone, l10n.repeatNone),
+      (AppConstants.repeatDaily, l10n.repeatDaily),
+      (AppConstants.repeatWeekly, l10n.repeatWeekly),
+      (AppConstants.repeatMonthly, l10n.repeatMonthly),
+      (AppConstants.repeatYearly, l10n.repeatYearly),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Repeat',
+        Text(l10n.repeat,
             style: theme.textTheme.labelMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant)),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _intervals.map((entry) {
+          children: intervals.map((entry) {
             final (val, label) = entry;
             return ChoiceChip(
               label: Text(label),
@@ -414,63 +427,72 @@ class _SetToButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final formatted = _formatDate(parsedResult.date);
+    final l10n = AppLocalizations.of(context)!;
+    final formatted = _formatDate(l10n, parsedResult.date);
 
-    return GestureDetector(
-      onTap: onAccept,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.event_available,
-                size: 20, color: colorScheme.onPrimaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Set to: ',
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w400,
-                        fontSize: 14,
+    return Semantics(
+      label: l10n.setTo(formatted),
+      button: true,
+      child: GestureDetector(
+        onTap: onAccept,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              ExcludeSemantics(
+                child: Icon(Icons.event_available,
+                    size: 20, color: colorScheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: l10n.setTo(''),
+                        style: TextStyle(
+                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w400,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: formatted,
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                      TextSpan(
+                        text: formatted,
+                        style: TextStyle(
+                          color: colorScheme.onPrimaryContainer,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Icon(Icons.check,
-                size: 20, color: colorScheme.onPrimaryContainer),
-          ],
+              ExcludeSemantics(
+                child: Icon(Icons.check,
+                    size: 20, color: colorScheme.onPrimaryContainer),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatDate(AppLocalizations l10n, DateTime dt) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final target = DateTime(dt.year, dt.month, dt.day);
     final diff = target.difference(today).inDays;
     final timeStr = DateFormat.jm().format(dt);
 
-    if (diff == 0) return 'Today, $timeStr';
-    if (diff == 1) return 'Tomorrow, $timeStr';
+    if (diff == 0) return '${l10n.today}, $timeStr';
+    if (diff == 1) return '${l10n.tomorrow}, $timeStr';
     if (diff < 7) return '${DateFormat.EEEE().format(dt)}, $timeStr';
     return '${DateFormat.yMMMd().format(dt)}, $timeStr';
   }

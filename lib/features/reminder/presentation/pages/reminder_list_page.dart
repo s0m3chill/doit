@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
@@ -39,6 +40,7 @@ class _ReminderListPageState extends State<ReminderListPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return BlocListener<ReminderBloc, ReminderState>(
       listener: (context, state) {
@@ -71,7 +73,7 @@ class _ReminderListPageState extends State<ReminderListPage> {
               child: Row(
                 children: [
                   Text(
-                    'Reminders',
+                    l10n.remindersTitle,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -85,10 +87,10 @@ class _ReminderListPageState extends State<ReminderListPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: SearchBar(
                 controller: _searchController,
-                hintText: 'Search reminders…',
+                hintText: l10n.searchReminders,
                 leading: const Padding(
                   padding: EdgeInsets.only(left: 8),
-                  child: Icon(Icons.search, size: 20),
+                  child: ExcludeSemantics(child: Icon(Icons.search, size: 20)),
                 ),
                 trailing: [
                   if (_searchController.text.isNotEmpty)
@@ -121,9 +123,9 @@ class _ReminderListPageState extends State<ReminderListPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Active')),
-                  ButtonSegment(value: true, label: Text('Completed')),
+                segments: [
+                  ButtonSegment(value: false, label: Text(l10n.activeTab)),
+                  ButtonSegment(value: true, label: Text(l10n.completedTab)),
                 ],
                 selected: {_showCompleted},
                 onSelectionChanged: (sel) => _onTabChanged(sel.first),
@@ -156,8 +158,8 @@ class _ReminderListPageState extends State<ReminderListPage> {
                             ? Icons.task_alt
                             : Icons.notifications_none,
                         message: _showCompleted
-                            ? 'No completed reminders'
-                            : 'No reminders yet.\nTap + to add one.',
+                            ? l10n.noCompletedReminders
+                            : l10n.noRemindersYet,
                       );
                     }
                     return _ReminderListView(
@@ -191,7 +193,9 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 64, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          ExcludeSemantics(
+            child: Icon(icon, size: 64, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
@@ -244,98 +248,111 @@ class _ReminderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final now = DateTime.now();
     final isOverdue = reminder.isOverdue(now);
+    final formattedDate = _formatDueDate(l10n, reminder.dueDate, now);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Dismissible(
-        key: ValueKey(reminder.id),
-        // Swipe right → complete (start-to-end)
-        // Swipe left  → delete  (end-to-start)
-        background: _SwipeBackground(
-          alignment: Alignment.centerLeft,
-          color: Colors.green,
-          icon: Icons.check,
-          label: 'Complete',
-        ),
-        secondaryBackground: _SwipeBackground(
-          alignment: Alignment.centerRight,
-          color: colorScheme.error,
-          icon: Icons.delete,
-          label: 'Delete',
-        ),
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            // Complete
-            context
-                .read<ReminderBloc>()
-                .add(MarkReminderComplete(id: reminder.id));
-            return false; // bloc handles removal from list
-          } else {
-            // Delete
-            return true;
-          }
-        },
-        onDismissed: (_) {
-          context.read<ReminderBloc>().add(RemoveReminder(id: reminder.id));
-        },
-        child: Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: isOverdue
-                ? BorderSide(color: colorScheme.error.withValues(alpha: 0.5), width: 1.5)
-                : BorderSide.none,
+      child: Semantics(
+        label: '${reminder.title}, $formattedDate${isOverdue ? ", ${l10n.overdue}" : ""}',
+        child: Dismissible(
+          key: ValueKey(reminder.id),
+          // Swipe right → complete (start-to-end)
+          // Swipe left  → delete  (end-to-start)
+          background: Semantics(
+            label: l10n.complete,
+            child: _SwipeBackground(
+              alignment: Alignment.centerLeft,
+              color: Colors.green,
+              icon: Icons.check,
+              label: l10n.complete,
+            ),
           ),
-          color: isOverdue
-              ? colorScheme.errorContainer.withValues(alpha: 0.3)
-              : colorScheme.surfaceContainerHighest,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => _navigateToEdit(context),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  // Left content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title
-                        Text(
-                          reminder.title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight:
-                                isOverdue ? FontWeight.w700 : FontWeight.w500,
-                            color: isOverdue ? colorScheme.error : null,
+          secondaryBackground: Semantics(
+            label: l10n.delete,
+            child: _SwipeBackground(
+              alignment: Alignment.centerRight,
+              color: colorScheme.error,
+              icon: Icons.delete,
+              label: l10n.delete,
+            ),
+          ),
+          confirmDismiss: (direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              // Complete
+              context
+                  .read<ReminderBloc>()
+                  .add(MarkReminderComplete(id: reminder.id));
+              return false; // bloc handles removal from list
+            } else {
+              // Delete
+              return true;
+            }
+          },
+          onDismissed: (_) {
+            context.read<ReminderBloc>().add(RemoveReminder(id: reminder.id));
+          },
+          child: Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: isOverdue
+                  ? BorderSide(color: colorScheme.error.withValues(alpha: 0.5), width: 1.5)
+                  : BorderSide.none,
+            ),
+            color: isOverdue
+                ? colorScheme.errorContainer.withValues(alpha: 0.3)
+                : colorScheme.surfaceContainerHighest,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _navigateToEdit(context),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    // Left content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Title
+                          Text(
+                            reminder.title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight:
+                                  isOverdue ? FontWeight.w700 : FontWeight.w500,
+                              color: isOverdue ? colorScheme.error : null,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        // Due date
-                        Text(
-                          _formatDueDate(reminder.dueDate, now),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: isOverdue
-                                ? colorScheme.error.withValues(alpha: 0.8)
-                                : colorScheme.onSurfaceVariant,
+                          const SizedBox(height: 4),
+                          // Due date
+                          Text(
+                            formattedDate,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isOverdue
+                                  ? colorScheme.error.withValues(alpha: 0.8)
+                                  : colorScheme.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        // Badges row
-                        _BadgeRow(reminder: reminder, isOverdue: isOverdue),
-                      ],
+                          const SizedBox(height: 6),
+                          // Badges row
+                          _BadgeRow(reminder: reminder, isOverdue: isOverdue),
+                        ],
+                      ),
                     ),
-                  ),
-                  // Trailing chevron
-                  Icon(
-                    Icons.chevron_right,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                  ),
-                ],
+                    // Trailing chevron
+                    ExcludeSemantics(
+                      child: Icon(
+                        Icons.chevron_right,
+                        color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -356,15 +373,15 @@ class _ReminderCard extends StatelessWidget {
     );
   }
 
-  String _formatDueDate(DateTime dueDate, DateTime now) {
+  String _formatDueDate(AppLocalizations l10n, DateTime dueDate, DateTime now) {
     final today = DateTime(now.year, now.month, now.day);
     final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
     final diff = dueDay.difference(today).inDays;
     final timeStr = DateFormat.jm().format(dueDate);
 
-    if (diff == 0) return 'Today $timeStr';
-    if (diff == 1) return 'Tomorrow $timeStr';
-    if (diff == -1) return 'Yesterday $timeStr';
+    if (diff == 0) return '${l10n.today} $timeStr';
+    if (diff == 1) return '${l10n.tomorrow} $timeStr';
+    if (diff == -1) return '${l10n.yesterday} $timeStr';
     if (diff < -1) {
       return '${DateFormat.MMMd().format(dueDate)} $timeStr';
     }
@@ -386,6 +403,7 @@ class _BadgeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
     final chips = <Widget>[];
 
     if (reminder.recurrenceRule.isRecurring) {
@@ -407,7 +425,7 @@ class _BadgeRow extends StatelessWidget {
     if (isOverdue) {
       chips.add(_MiniChip(
         icon: Icons.warning_amber_rounded,
-        label: 'Overdue',
+        label: l10n.overdue,
         color: colorScheme.error,
       ));
     }
@@ -440,7 +458,7 @@ class _MiniChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          ExcludeSemantics(child: Icon(icon, size: 12, color: color)),
           const SizedBox(width: 4),
           Text(
             label,

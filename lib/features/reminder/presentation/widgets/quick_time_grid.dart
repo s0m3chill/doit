@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/features/reminder/domain/entities/quick_time_preset.dart';
 import 'package:doit/features/reminder/domain/services/quick_time_presets.dart';
 
@@ -28,6 +29,7 @@ class QuickTimeGrid extends StatelessWidget {
     final now = DateTime.now();
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,7 +38,7 @@ class QuickTimeGrid extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
-            'Quick set',
+            l10n.quickSet,
             style: theme.textTheme.labelMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -109,48 +111,53 @@ class _QuickTimeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final timeFormat = DateFormat.jm(); // e.g. "9:00 AM"
     final isToday = _isToday(resolvedTime);
+    final l10n = AppLocalizations.of(context)!;
     final subtitle =
-        isToday ? timeFormat.format(resolvedTime) : _shortDate(resolvedTime);
+        isToday ? timeFormat.format(resolvedTime) : _shortDate(l10n, resolvedTime);
 
-    return Material(
-      color: isSelected
-          ? colorScheme.primaryContainer
-          : colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      label: '${preset.label}, $subtitle',
+      button: true,
+      child: Material(
+        color: isSelected
+            ? colorScheme.primaryContainer
+            : colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 80,
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                preset.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected
-                      ? colorScheme.onPrimaryContainer
-                      : colorScheme.onSurface,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 80,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  preset.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer
+                        : colorScheme.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: isSelected
-                      ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
-                      : colorScheme.onSurfaceVariant,
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.7)
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -162,13 +169,13 @@ class _QuickTimeButton extends StatelessWidget {
     return dt.year == now.year && dt.month == now.month && dt.day == now.day;
   }
 
-  String _shortDate(DateTime dt) {
+  String _shortDate(AppLocalizations l10n, DateTime dt) {
     final now = DateTime.now();
     final tomorrow = DateTime(now.year, now.month, now.day + 1);
     if (dt.year == tomorrow.year &&
         dt.month == tomorrow.month &&
         dt.day == tomorrow.day) {
-      return 'Tomorrow';
+      return l10n.tomorrow;
     }
     return DateFormat.MMMd().format(dt); // e.g. "Jun 15"
   }

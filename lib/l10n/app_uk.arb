@@ -1,0 +1,108 @@
+{
+  "@@locale": "uk",
+
+  "appName": "DoIt",
+
+  "remindersTab": "Нагадування",
+  "timersTab": "Таймери",
+  "settingsTab": "Налаштування",
+
+  "remindersTitle": "Нагадування",
+  "timersTitle": "Таймери",
+  "settingsTitle": "Налаштування",
+
+  "searchReminders": "Пошук нагадувань…",
+  "activeTab": "Активні",
+  "completedTab": "Виконані",
+
+  "noRemindersYet": "Нагадувань ще немає.\nНатисніть + щоб додати.",
+  "noCompletedReminders": "Немає виконаних нагадувань",
+  "noTimersYet": "Таймерів ще немає.\nНатисніть + щоб створити.",
+
+  "newReminder": "Нове нагадування",
+  "editReminder": "Редагувати нагадування",
+  "titleHint": "Що потрібно зробити?",
+  "add": "Додати",
+  "save": "Зберегти",
+  "cancel": "Скасувати",
+  "delete": "Видалити",
+  "complete": "Виконати",
+
+  "quickSet": "Швидкий вибір",
+  "dueDate": "Дата виконання",
+  "tapToPickDate": "Натисніть для вибору дати і часу",
+  "setTo": "Встановити: {date}",
+
+  "repeat": "Повторення",
+  "repeatNone": "Немає",
+  "repeatDaily": "Щодня",
+  "repeatWeekly": "Щотижня",
+  "repeatMonthly": "Щомісяця",
+  "repeatYearly": "Щороку",
+
+  "autoSnooze": "Автоповтор",
+  "autoSnoozeDisabled": "Вимкнено",
+  "autoSnoozeDescription": "Нагадує кожні {minutes} хв коли прострочено",
+  "interval": "Інтервал",
+  "maxNags": "Макс. повторів",
+  "indefinite": "∞",
+
+  "overdue": "Прострочено",
+  "today": "Сьогодні",
+  "tomorrow": "Завтра",
+  "yesterday": "Вчора",
+
+  "reminderCreated": "Нагадування створено",
+  "reminderUpdated": "Нагадування оновлено",
+  "reminderDeleted": "Нагадування видалено",
+  "reminderCompleted": "Нагадування виконано",
+  "snoozedFor": "Відкладено на {minutes} хвилин",
+
+  "newTimer": "Новий таймер",
+  "timerLabel": "Назва таймера",
+  "duration": "Тривалість",
+  "timerCreated": "Таймер створено",
+  "timerDeleted": "Таймер видалено",
+  "timerDone": "Таймер завершено!",
+
+  "appearance": "Зовнішній вигляд",
+  "theme": "Тема",
+  "themeSystem": "Системна",
+  "themeLight": "Світла",
+  "themeDark": "Темна",
+  "accentColor": "Колір акценту",
+
+  "notifications": "Сповіщення",
+  "sound": "Звук",
+  "soundDescription": "Відтворювати звук при сповіщенні",
+  "soundDefault": "Стандартний",
+  "soundGentle": "М'який",
+  "soundUrgent": "Терміновий",
+  "soundSilent": "Без звуку",
+  "vibration": "Вібрація",
+  "vibrationDescription": "Тактильний відгук при діях",
+  "hapticLight": "Легка",
+  "hapticMedium": "Середня",
+  "hapticHeavy": "Сильна",
+  "hapticOff": "Вимк.",
+
+  "about": "Про додаток",
+  "version": "Версія {version}",
+
+  "quickTime30min": "30 хв",
+  "quickTime1hour": "1 год",
+  "quickTime3hours": "3 год",
+  "quickTimeTonight": "Ввечері",
+  "quickTimeTomorrow": "Завтра",
+  "quickTime2days": "2 дні",
+  "quickTime9am": "9:00",
+  "quickTime12pm": "12:00",
+  "quickTime3pm": "15:00",
+  "quickTime6pm": "18:00",
+  "quickTimeMonday": "Понеділок",
+  "quickTimeNextWeek": "Наст. тиждень",
+
+  "naturalDateHint": "напр. \"завтра о 15:00\", \"через 2 години\"",
+
+  "overdueCount": "{count, plural, =1{1 прострочене} few{{count} прострочені} other{{count} прострочених}}"
+}

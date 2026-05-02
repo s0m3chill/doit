@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_state.dart';
@@ -33,6 +34,8 @@ class _MainShellPageState extends State<MainShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -40,9 +43,13 @@ class _MainShellPageState extends State<MainShellPage> {
       ),
       // FAB for Reminders (index 0) and Timers (index 1)
       floatingActionButton: _currentIndex < 2
-          ? FloatingActionButton(
-              onPressed: () => _onFabPressed(context),
-              child: const Icon(Icons.add),
+          ? Semantics(
+              label: l10n.newReminder,
+              button: true,
+              child: FloatingActionButton(
+                onPressed: () => _onFabPressed(context),
+                child: ExcludeSemantics(child: const Icon(Icons.add)),
+              ),
             )
           : null,
       bottomNavigationBar: BlocBuilder<ReminderBloc, ReminderState>(
@@ -64,27 +71,45 @@ class _MainShellPageState extends State<MainShellPage> {
             },
             destinations: [
               NavigationDestination(
-                icon: Badge(
-                  isLabelVisible: overdueCount > 0,
-                  label: Text('$overdueCount'),
-                  child: const Icon(Icons.notifications_active_outlined),
+                icon: Semantics(
+                  label: l10n.remindersTab,
+                  child: Badge(
+                    isLabelVisible: overdueCount > 0,
+                    label: Text('$overdueCount'),
+                    child: const Icon(Icons.notifications_active_outlined),
+                  ),
                 ),
-                selectedIcon: Badge(
-                  isLabelVisible: overdueCount > 0,
-                  label: Text('$overdueCount'),
-                  child: const Icon(Icons.notifications_active),
+                selectedIcon: Semantics(
+                  label: l10n.remindersTab,
+                  child: Badge(
+                    isLabelVisible: overdueCount > 0,
+                    label: Text('$overdueCount'),
+                    child: const Icon(Icons.notifications_active),
+                  ),
                 ),
-                label: 'Reminders',
+                label: l10n.remindersTab,
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.timer_outlined),
-                selectedIcon: Icon(Icons.timer),
-                label: 'Timers',
+              NavigationDestination(
+                icon: Semantics(
+                  label: l10n.timersTab,
+                  child: const Icon(Icons.timer_outlined),
+                ),
+                selectedIcon: Semantics(
+                  label: l10n.timersTab,
+                  child: const Icon(Icons.timer),
+                ),
+                label: l10n.timersTab,
               ),
-              const NavigationDestination(
-                icon: Icon(Icons.settings_outlined),
-                selectedIcon: Icon(Icons.settings),
-                label: 'Settings',
+              NavigationDestination(
+                icon: Semantics(
+                  label: l10n.settingsTab,
+                  child: const Icon(Icons.settings_outlined),
+                ),
+                selectedIcon: Semantics(
+                  label: l10n.settingsTab,
+                  child: const Icon(Icons.settings),
+                ),
+                label: l10n.settingsTab,
               ),
             ],
           );

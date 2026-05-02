@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/core/di/injection_container.dart' as di;
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
@@ -38,6 +40,14 @@ class DoItApp extends StatelessWidget {
             title: 'DoIt',
             debugShowCheckedModeBanner: false,
             themeMode: themeMode,
+            // Localization
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
             theme: ThemeData(
               colorSchemeSeed: colorSeed,
               useMaterial3: true,

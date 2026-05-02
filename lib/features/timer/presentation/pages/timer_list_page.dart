@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:doit/l10n/app_localizations.dart';
 import 'package:doit/features/timer/domain/entities/countdown_timer.dart';
 import 'package:doit/features/timer/presentation/bloc/timer_bloc.dart';
 import 'package:doit/features/timer/presentation/bloc/timer_event.dart';
@@ -12,6 +13,7 @@ class TimerListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return BlocListener<TimerBloc, TimerState>(
       listener: (context, state) {
@@ -38,7 +40,7 @@ class TimerListPage extends StatelessWidget {
               child: Row(
                 children: [
                   Text(
-                    'Timers',
+                    l10n.timersTitle,
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -62,9 +64,9 @@ class TimerListPage extends StatelessWidget {
                   }
                   if (state is TimerLoaded) {
                     if (state.timers.isEmpty) {
-                      return const _TimerEmptyState(
+                      return _TimerEmptyState(
                         icon: Icons.timer_off_outlined,
-                        message: 'No timers yet.\nTap + to create one.',
+                        message: l10n.noTimersYet,
                       );
                     }
                     return _TimerListView(
@@ -98,9 +100,11 @@ class _TimerEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon,
-              size: 64,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          ExcludeSemantics(
+            child: Icon(icon,
+                size: 64,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4)),
+          ),
           const SizedBox(height: 16),
           Text(
             message,
@@ -154,117 +158,132 @@ class _TimerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+
+    final displayTime = _isRunning
+        ? _formatSeconds(remainingSeconds!)
+        : timer.formattedDuration;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Dismissible(
-        key: ValueKey(timer.id),
-        direction: DismissDirection.endToStart,
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 24),
-          margin: const EdgeInsets.only(bottom: 8),
-          decoration: BoxDecoration(
-            color: colorScheme.error,
-            borderRadius: BorderRadius.circular(16),
+      child: Semantics(
+        label: '${timer.label}, ${l10n.duration}: $displayTime${_isRunning ? ", running" : ""}',
+        child: Dismissible(
+          key: ValueKey(timer.id),
+          direction: DismissDirection.endToStart,
+          background: Semantics(
+            label: l10n.delete,
+            child: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 24),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: colorScheme.error,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(l10n.delete,
+                      style: TextStyle(
+                          color: colorScheme.onError,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Icon(Icons.delete, color: colorScheme.onError),
+                ],
+              ),
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Delete',
-                  style: TextStyle(
-                      color: colorScheme.onError,
-                      fontWeight: FontWeight.w600)),
-              const SizedBox(width: 8),
-              Icon(Icons.delete, color: colorScheme.onError),
-            ],
-          ),
-        ),
-        onDismissed: (_) {
-          context.read<TimerBloc>().add(RemoveTimer(id: timer.id));
-        },
-        child: Card(
-          elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          color: _isRunning
-              ? colorScheme.primaryContainer.withValues(alpha: 0.4)
-              : colorScheme.surfaceContainerHighest,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                // Circular progress or static icon
-                _isRunning
-                    ? _CountdownIndicator(
-                        remaining: remainingSeconds!,
-                        total: timer.durationSeconds,
-                      )
-                    : Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.primaryContainer,
+          onDismissed: (_) {
+            context.read<TimerBloc>().add(RemoveTimer(id: timer.id));
+          },
+          child: Card(
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: _isRunning
+                ? colorScheme.primaryContainer.withValues(alpha: 0.4)
+                : colorScheme.surfaceContainerHighest,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  // Circular progress or static icon
+                  _isRunning
+                      ? _CountdownIndicator(
+                          remaining: remainingSeconds!,
+                          total: timer.durationSeconds,
+                        )
+                      : ExcludeSemantics(
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colorScheme.primaryContainer,
+                            ),
+                            child: Icon(Icons.timer,
+                                color: colorScheme.onPrimaryContainer),
+                          ),
                         ),
-                        child: Icon(Icons.timer,
-                            color: colorScheme.onPrimaryContainer),
-                      ),
-                const SizedBox(width: 16),
-                // Label + duration
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        timer.label,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
+                  const SizedBox(width: 16),
+                  // Label + duration
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          timer.label,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _isRunning
-                            ? _formatSeconds(remainingSeconds!)
-                            : timer.formattedDuration,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _isRunning
-                              ? colorScheme.primary
-                              : colorScheme.onSurfaceVariant,
-                          fontWeight:
-                              _isRunning ? FontWeight.w600 : FontWeight.normal,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures()
-                          ],
+                        const SizedBox(height: 2),
+                        Text(
+                          displayTime,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: _isRunning
+                                ? colorScheme.primary
+                                : colorScheme.onSurfaceVariant,
+                            fontWeight:
+                                _isRunning ? FontWeight.w600 : FontWeight.normal,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures()
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                // Play / Stop button
-                IconButton.filled(
-                  onPressed: () {
-                    final bloc = context.read<TimerBloc>();
-                    if (_isRunning) {
-                      bloc.add(CancelCountdown(timerId: timer.id));
-                    } else {
-                      bloc.add(StartCountdown(timerId: timer.id));
-                    }
-                  },
-                  icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
-                  style: IconButton.styleFrom(
-                    backgroundColor: _isRunning
-                        ? colorScheme.error
-                        : colorScheme.primary,
-                    foregroundColor: _isRunning
-                        ? colorScheme.onError
-                        : colorScheme.onPrimary,
+                  // Play / Stop button
+                  Semantics(
+                    label: _isRunning ? 'Stop' : 'Start',
+                    button: true,
+                    child: IconButton.filled(
+                      onPressed: () {
+                        final bloc = context.read<TimerBloc>();
+                        if (_isRunning) {
+                          bloc.add(CancelCountdown(timerId: timer.id));
+                        } else {
+                          bloc.add(StartCountdown(timerId: timer.id));
+                        }
+                      },
+                      icon: Icon(_isRunning ? Icons.stop : Icons.play_arrow),
+                      style: IconButton.styleFrom(
+                        backgroundColor: _isRunning
+                            ? colorScheme.error
+                            : colorScheme.primary,
+                        foregroundColor: _isRunning
+                            ? colorScheme.onError
+                            : colorScheme.onPrimary,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -378,9 +397,10 @@ class _AddTimerDialogState extends State<_AddTimerDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
 
     return AlertDialog(
-      title: const Text('New Timer'),
+      title: Text(l10n.newTimer),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -389,14 +409,14 @@ class _AddTimerDialogState extends State<_AddTimerDialog> {
               controller: _labelController,
               autofocus: true,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Timer label',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: l10n.timerLabel,
+                border: const OutlineInputBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 20),
-            Text('Duration',
+            Text(l10n.duration,
                 style: theme.textTheme.labelMedium
                     ?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: 12),
@@ -434,7 +454,7 @@ class _AddTimerDialogState extends State<_AddTimerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: _canSave
@@ -446,7 +466,7 @@ class _AddTimerDialogState extends State<_AddTimerDialog> {
                     ),
                   )
               : null,
-          child: const Text('Add'),
+          child: Text(l10n.add),
         ),
       ],
     );

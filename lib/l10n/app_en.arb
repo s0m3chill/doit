@@ -1,0 +1,133 @@
+{
+  "@@locale": "en",
+
+  "appName": "DoIt",
+
+  "remindersTab": "Reminders",
+  "timersTab": "Timers",
+  "settingsTab": "Settings",
+
+  "remindersTitle": "Reminders",
+  "timersTitle": "Timers",
+  "settingsTitle": "Settings",
+
+  "searchReminders": "Search reminders…",
+  "activeTab": "Active",
+  "completedTab": "Completed",
+
+  "noRemindersYet": "No reminders yet.\nTap + to add one.",
+  "noCompletedReminders": "No completed reminders",
+  "noTimersYet": "No timers yet.\nTap + to create one.",
+
+  "newReminder": "New Reminder",
+  "editReminder": "Edit Reminder",
+  "titleHint": "What do you need to do?",
+  "add": "Add",
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "complete": "Complete",
+
+  "quickSet": "Quick set",
+  "dueDate": "Due date",
+  "tapToPickDate": "Tap to pick date & time",
+  "setTo": "Set to: {date}",
+  "@setTo": {
+    "placeholders": {
+      "date": { "type": "String" }
+    }
+  },
+
+  "repeat": "Repeat",
+  "repeatNone": "None",
+  "repeatDaily": "Daily",
+  "repeatWeekly": "Weekly",
+  "repeatMonthly": "Monthly",
+  "repeatYearly": "Yearly",
+
+  "autoSnooze": "Auto-snooze",
+  "autoSnoozeDisabled": "Disabled",
+  "autoSnoozeDescription": "Nags every {minutes} min when overdue",
+  "@autoSnoozeDescription": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "interval": "Interval",
+  "maxNags": "Max nags",
+  "indefinite": "∞",
+
+  "overdue": "Overdue",
+  "today": "Today",
+  "tomorrow": "Tomorrow",
+  "yesterday": "Yesterday",
+
+  "reminderCreated": "Reminder created",
+  "reminderUpdated": "Reminder updated",
+  "reminderDeleted": "Reminder deleted",
+  "reminderCompleted": "Reminder completed",
+  "snoozedFor": "Snoozed for {minutes} minutes",
+  "@snoozedFor": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+
+  "newTimer": "New Timer",
+  "timerLabel": "Timer label",
+  "duration": "Duration",
+  "timerCreated": "Timer created",
+  "timerDeleted": "Timer deleted",
+  "timerDone": "Timer Done!",
+
+  "appearance": "Appearance",
+  "theme": "Theme",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "accentColor": "Accent color",
+
+  "notifications": "Notifications",
+  "sound": "Sound",
+  "soundDescription": "Play sound on notification",
+  "soundDefault": "Default",
+  "soundGentle": "Gentle",
+  "soundUrgent": "Urgent",
+  "soundSilent": "Silent",
+  "vibration": "Vibration",
+  "vibrationDescription": "Haptic feedback on actions",
+  "hapticLight": "Light",
+  "hapticMedium": "Medium",
+  "hapticHeavy": "Heavy",
+  "hapticOff": "Off",
+
+  "about": "About",
+  "version": "Version {version}",
+  "@version": {
+    "placeholders": {
+      "version": { "type": "String" }
+    }
+  },
+
+  "quickTime30min": "30 min",
+  "quickTime1hour": "1 hour",
+  "quickTime3hours": "3 hours",
+  "quickTimeTonight": "Tonight",
+  "quickTimeTomorrow": "Tomorrow",
+  "quickTime2days": "2 days",
+  "quickTime9am": "9 AM",
+  "quickTime12pm": "12 PM",
+  "quickTime3pm": "3 PM",
+  "quickTime6pm": "6 PM",
+  "quickTimeMonday": "Monday",
+  "quickTimeNextWeek": "Next week",
+
+  "naturalDateHint": "e.g. \"tomorrow at 3pm\", \"in 2 hours\"",
+
+  "overdueCount": "{count, plural, =1{1 overdue} other{{count} overdue}}",
+  "@overdueCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

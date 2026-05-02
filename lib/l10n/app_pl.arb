@@ -1,0 +1,108 @@
+{
+  "@@locale": "pl",
+
+  "appName": "DoIt",
+
+  "remindersTab": "Przypomnienia",
+  "timersTab": "Minutniki",
+  "settingsTab": "Ustawienia",
+
+  "remindersTitle": "Przypomnienia",
+  "timersTitle": "Minutniki",
+  "settingsTitle": "Ustawienia",
+
+  "searchReminders": "Szukaj przypomnień…",
+  "activeTab": "Aktywne",
+  "completedTab": "Ukończone",
+
+  "noRemindersYet": "Brak przypomnień.\nDotknij + aby dodać.",
+  "noCompletedReminders": "Brak ukończonych przypomnień",
+  "noTimersYet": "Brak minutników.\nDotknij + aby utworzyć.",
+
+  "newReminder": "Nowe przypomnienie",
+  "editReminder": "Edytuj przypomnienie",
+  "titleHint": "Co musisz zrobić?",
+  "add": "Dodaj",
+  "save": "Zapisz",
+  "cancel": "Anuluj",
+  "delete": "Usuń",
+  "complete": "Ukończ",
+
+  "quickSet": "Szybki wybór",
+  "dueDate": "Termin",
+  "tapToPickDate": "Dotknij aby wybrać datę i godzinę",
+  "setTo": "Ustaw na: {date}",
+
+  "repeat": "Powtarzanie",
+  "repeatNone": "Brak",
+  "repeatDaily": "Codziennie",
+  "repeatWeekly": "Co tydzień",
+  "repeatMonthly": "Co miesiąc",
+  "repeatYearly": "Co rok",
+
+  "autoSnooze": "Autodrzemka",
+  "autoSnoozeDisabled": "Wyłączona",
+  "autoSnoozeDescription": "Przypomina co {minutes} min gdy zaległe",
+  "interval": "Interwał",
+  "maxNags": "Maks. powtórzeń",
+  "indefinite": "∞",
+
+  "overdue": "Zaległe",
+  "today": "Dzisiaj",
+  "tomorrow": "Jutro",
+  "yesterday": "Wczoraj",
+
+  "reminderCreated": "Przypomnienie utworzone",
+  "reminderUpdated": "Przypomnienie zaktualizowane",
+  "reminderDeleted": "Przypomnienie usunięte",
+  "reminderCompleted": "Przypomnienie ukończone",
+  "snoozedFor": "Odłożono na {minutes} minut",
+
+  "newTimer": "Nowy minutnik",
+  "timerLabel": "Nazwa minutnika",
+  "duration": "Czas trwania",
+  "timerCreated": "Minutnik utworzony",
+  "timerDeleted": "Minutnik usunięty",
+  "timerDone": "Minutnik zakończony!",
+
+  "appearance": "Wygląd",
+  "theme": "Motyw",
+  "themeSystem": "Systemowy",
+  "themeLight": "Jasny",
+  "themeDark": "Ciemny",
+  "accentColor": "Kolor akcentu",
+
+  "notifications": "Powiadomienia",
+  "sound": "Dźwięk",
+  "soundDescription": "Odtwarzaj dźwięk przy powiadomieniu",
+  "soundDefault": "Domyślny",
+  "soundGentle": "Łagodny",
+  "soundUrgent": "Pilny",
+  "soundSilent": "Cichy",
+  "vibration": "Wibracja",
+  "vibrationDescription": "Reakcja dotykowa przy akcjach",
+  "hapticLight": "Lekka",
+  "hapticMedium": "Średnia",
+  "hapticHeavy": "Mocna",
+  "hapticOff": "Wył.",
+
+  "about": "O aplikacji",
+  "version": "Wersja {version}",
+
+  "quickTime30min": "30 min",
+  "quickTime1hour": "1 godz",
+  "quickTime3hours": "3 godz",
+  "quickTimeTonight": "Wieczorem",
+  "quickTimeTomorrow": "Jutro",
+  "quickTime2days": "2 dni",
+  "quickTime9am": "9:00",
+  "quickTime12pm": "12:00",
+  "quickTime3pm": "15:00",
+  "quickTime6pm": "18:00",
+  "quickTimeMonday": "Poniedziałek",
+  "quickTimeNextWeek": "Nast. tydzień",
+
+  "naturalDateHint": "np. \"jutro o 15:00\", \"za 2 godziny\"",
+
+  "overdueCount": "{count, plural, =1{1 zaległe} few{{count} zaległe} other{{count} zaległych}}"
+}
