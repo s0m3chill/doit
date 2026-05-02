@@ -1,17 +1,16 @@
 import 'package:dartz/dartz.dart';
 import 'package:doit/core/error/failures.dart';
 import 'package:doit/core/usecases/usecase.dart';
-import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
+import 'package:doit/features/settings/domain/entities/app_settings.dart';
 import 'package:doit/features/settings/domain/repositories/settings_repository.dart';
 
-class GetHapticSoundSettings
-    extends UseCase<HapticSoundSettings, NoParams> {
+class GetAppSettings extends UseCase<AppSettings, NoParams> {
   final SettingsRepository repository;
 
-  GetHapticSoundSettings(this.repository);
+  GetAppSettings(this.repository);
 
   @override
-  Future<Either<Failure, HapticSoundSettings>> call(NoParams params) {
-    return repository.getHapticSoundSettings();
+  Future<Either<Failure, AppSettings>> call(NoParams params) {
+    return repository.getSettings();
   }
 }

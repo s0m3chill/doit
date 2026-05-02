@@ -11,6 +11,8 @@ class LoadSettings extends SettingsEvent {
   const LoadSettings();
 }
 
+// ── Haptic / Sound ──
+
 class ToggleSound extends SettingsEvent {
   final bool enabled;
   const ToggleSound({required this.enabled});
@@ -41,4 +43,22 @@ class ChangeHapticIntensity extends SettingsEvent {
 
   @override
   List<Object?> get props => [intensity];
+}
+
+// ── Theme ──
+
+class ChangeThemeMode extends SettingsEvent {
+  final String mode; // 'system', 'light', 'dark'
+  const ChangeThemeMode({required this.mode});
+
+  @override
+  List<Object?> get props => [mode];
+}
+
+class ChangeThemeColor extends SettingsEvent {
+  final String colorName;
+  const ChangeThemeColor({required this.colorName});
+
+  @override
+  List<Object?> get props => [colorName];
 }

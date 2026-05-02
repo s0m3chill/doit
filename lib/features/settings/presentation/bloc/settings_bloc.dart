@@ -1,20 +1,20 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:doit/core/services/feedback_coordinator.dart';
 import 'package:doit/core/usecases/usecase.dart';
-import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
+import 'package:doit/features/settings/domain/entities/app_settings.dart';
 import 'package:doit/features/settings/domain/usecases/get_haptic_sound_settings.dart';
 import 'package:doit/features/settings/domain/usecases/update_haptic_sound_settings.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_event.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_state.dart';
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
-  final GetHapticSoundSettings getHapticSoundSettings;
-  final UpdateHapticSoundSettings updateHapticSoundSettings;
+  final GetAppSettings getAppSettings;
+  final UpdateAppSettings updateAppSettings;
   final FeedbackCoordinator feedbackCoordinator;
 
   SettingsBloc({
-    required this.getHapticSoundSettings,
-    required this.updateHapticSoundSettings,
+    required this.getAppSettings,
+    required this.updateAppSettings,
     required this.feedbackCoordinator,
   }) : super(const SettingsInitial()) {
     on<LoadSettings>(_onLoadSettings);
@@ -22,6 +22,8 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ToggleVibration>(_onToggleVibration);
     on<ChangeNotificationSound>(_onChangeNotificationSound);
     on<ChangeHapticIntensity>(_onChangeHapticIntensity);
+    on<ChangeThemeMode>(_onChangeThemeMode);
+    on<ChangeThemeColor>(_onChangeThemeColor);
   }
 
   Future<void> _onLoadSettings(
@@ -29,7 +31,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     emit(const SettingsLoading());
-    final result = await getHapticSoundSettings(const NoParams());
+    final result = await getAppSettings(const NoParams());
     result.fold(
       (failure) => emit(SettingsError(failure.message)),
       (settings) => emit(SettingsLoaded(settings)),
@@ -40,9 +42,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ToggleSound event,
     Emitter<SettingsState> emit,
   ) async {
-    final current = _currentSettings;
+    final current = _current;
     if (current == null) return;
-    final updated = current.copyWith(soundEnabled: event.enabled);
+    final updated = current.copyWith(
+      hapticSound: current.hapticSound.copyWith(soundEnabled: event.enabled),
+    );
     await _saveAndEmit(updated, emit);
   }
 
@@ -50,13 +54,15 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ToggleVibration event,
     Emitter<SettingsState> emit,
   ) async {
-    final current = _currentSettings;
+    final current = _current;
     if (current == null) return;
-    final updated = current.copyWith(vibrationEnabled: event.enabled);
+    final updated = current.copyWith(
+      hapticSound:
+          current.hapticSound.copyWith(vibrationEnabled: event.enabled),
+    );
     await _saveAndEmit(updated, emit);
-    // Give immediate feedback when enabling vibration.
     if (event.enabled) {
-      await feedbackCoordinator.triggerSelection(updated);
+      await feedbackCoordinator.triggerSelection(updated.hapticSound);
     }
   }
 
@@ -64,9 +70,12 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ChangeNotificationSound event,
     Emitter<SettingsState> emit,
   ) async {
-    final current = _currentSettings;
+    final current = _current;
     if (current == null) return;
-    final updated = current.copyWith(notificationSound: event.sound);
+    final updated = current.copyWith(
+      hapticSound:
+          current.hapticSound.copyWith(notificationSound: event.sound),
+    );
     await _saveAndEmit(updated, emit);
   }
 
@@ -74,24 +83,50 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     ChangeHapticIntensity event,
     Emitter<SettingsState> emit,
   ) async {
-    final current = _currentSettings;
+    final current = _current;
     if (current == null) return;
-    final updated = current.copyWith(hapticIntensity: event.intensity);
+    final updated = current.copyWith(
+      hapticSound:
+          current.hapticSound.copyWith(hapticIntensity: event.intensity),
+    );
     await _saveAndEmit(updated, emit);
-    // Give immediate feedback with the new intensity.
-    await feedbackCoordinator.triggerAction(updated);
+    await feedbackCoordinator.triggerAction(updated.hapticSound);
   }
 
-  HapticSoundSettings? get _currentSettings {
+  Future<void> _onChangeThemeMode(
+    ChangeThemeMode event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final current = _current;
+    if (current == null) return;
+    final updated = current.copyWith(
+      theme: current.theme.copyWith(themeMode: event.mode),
+    );
+    await _saveAndEmit(updated, emit);
+  }
+
+  Future<void> _onChangeThemeColor(
+    ChangeThemeColor event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final current = _current;
+    if (current == null) return;
+    final updated = current.copyWith(
+      theme: current.theme.copyWith(colorName: event.colorName),
+    );
+    await _saveAndEmit(updated, emit);
+  }
+
+  AppSettings? get _current {
     final s = state;
     return s is SettingsLoaded ? s.settings : null;
   }
 
   Future<void> _saveAndEmit(
-    HapticSoundSettings settings,
+    AppSettings settings,
     Emitter<SettingsState> emit,
   ) async {
-    final result = await updateHapticSoundSettings(settings);
+    final result = await updateAppSettings(settings);
     result.fold(
       (failure) => emit(SettingsError(failure.message)),
       (saved) => emit(SettingsLoaded(saved)),

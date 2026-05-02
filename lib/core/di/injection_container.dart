@@ -44,7 +44,6 @@ import 'package:doit/features/settings/presentation/bloc/settings_bloc.dart';
 
 final sl = GetIt.instance;
 
-/// Registers all dependencies. Called once at app startup.
 Future<void> init() async {
   // ── Core Services ──
   sl.registerLazySingleton(() => FlutterLocalNotificationsPlugin());
@@ -72,7 +71,7 @@ Future<void> init() async {
     ),
   );
 
-  // ── Reminder BLoC ──
+  // ── BLoCs ──
   sl.registerFactory(
     () => ReminderBloc(
       getAllReminders: sl(),
@@ -90,8 +89,6 @@ Future<void> init() async {
       repeatScheduler: sl(),
     ),
   );
-
-  // ── Timer BLoC ──
   sl.registerFactory(
     () => TimerBloc(
       getAllTimers: sl(),
@@ -100,12 +97,10 @@ Future<void> init() async {
       notificationService: sl(),
     ),
   );
-
-  // ── Settings BLoC ──
   sl.registerFactory(
     () => SettingsBloc(
-      getHapticSoundSettings: sl(),
-      updateHapticSoundSettings: sl(),
+      getAppSettings: sl(),
+      updateAppSettings: sl(),
       feedbackCoordinator: sl(),
     ),
   );
@@ -128,8 +123,8 @@ Future<void> init() async {
   sl.registerLazySingleton(() => DeleteTimer(sl()));
 
   // ── Settings Use Cases ──
-  sl.registerLazySingleton(() => GetHapticSoundSettings(sl()));
-  sl.registerLazySingleton(() => UpdateHapticSoundSettings(sl()));
+  sl.registerLazySingleton(() => GetAppSettings(sl()));
+  sl.registerLazySingleton(() => UpdateAppSettings(sl()));
 
   // ── Repositories ──
   sl.registerLazySingleton<ReminderRepository>(

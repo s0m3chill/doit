@@ -5,7 +5,9 @@ import 'package:doit/core/error/exceptions.dart';
 import 'package:doit/core/error/failures.dart';
 import 'package:doit/features/settings/data/datasources/settings_local_data_source.dart';
 import 'package:doit/features/settings/data/repositories/settings_repository_impl.dart';
+import 'package:doit/features/settings/domain/entities/app_settings.dart';
 import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
+import 'package:doit/features/settings/domain/entities/theme_settings.dart';
 
 class MockSettingsLocalDataSource extends Mock
     implements SettingsLocalDataSource {}
@@ -19,42 +21,46 @@ void main() {
     repository = SettingsRepositoryImpl(localDataSource: mockDataSource);
   });
 
-  group('getHapticSoundSettings', () {
+  group('getSettings', () {
     test('returns defaults when no settings stored', () async {
       when(() => mockDataSource.getAllSettings())
           .thenAnswer((_) async => {});
 
-      final result = await repository.getHapticSoundSettings();
+      final result = await repository.getSettings();
 
       expect(result.isRight(), true);
       result.fold(
         (_) => fail('Should be Right'),
         (settings) {
-          expect(settings.soundEnabled, true);
-          expect(settings.vibrationEnabled, true);
-          expect(settings.notificationSound, 'default');
-          expect(settings.hapticIntensity, 'medium');
+          expect(settings.hapticSound.soundEnabled, true);
+          expect(settings.hapticSound.vibrationEnabled, true);
+          expect(settings.hapticSound.notificationSound, 'default');
+          expect(settings.hapticSound.hapticIntensity, 'medium');
+          expect(settings.theme.themeMode, 'system');
+          expect(settings.theme.colorName, 'deepPurple');
         },
       );
     });
 
-    test('returns stored settings', () async {
+    test('returns stored settings including theme', () async {
       when(() => mockDataSource.getAllSettings()).thenAnswer((_) async => {
             'sound_enabled': 'false',
             'vibration_enabled': 'true',
             'notification_sound': 'gentle',
             'haptic_intensity': 'light',
+            'theme_mode': 'dark',
+            'color_name': 'blue',
           });
 
-      final result = await repository.getHapticSoundSettings();
+      final result = await repository.getSettings();
 
       result.fold(
         (_) => fail('Should be Right'),
         (settings) {
-          expect(settings.soundEnabled, false);
-          expect(settings.vibrationEnabled, true);
-          expect(settings.notificationSound, 'gentle');
-          expect(settings.hapticIntensity, 'light');
+          expect(settings.hapticSound.soundEnabled, false);
+          expect(settings.hapticSound.notificationSound, 'gentle');
+          expect(settings.theme.themeMode, 'dark');
+          expect(settings.theme.colorName, 'blue');
         },
       );
     });
@@ -63,7 +69,7 @@ void main() {
       when(() => mockDataSource.getAllSettings())
           .thenThrow(const DatabaseException('error'));
 
-      final result = await repository.getHapticSoundSettings();
+      final result = await repository.getSettings();
 
       expect(result.isLeft(), true);
       result.fold(
@@ -73,28 +79,27 @@ void main() {
     });
   });
 
-  group('saveHapticSoundSettings', () {
-    test('saves all settings and returns them', () async {
+  group('saveSettings', () {
+    test('saves all settings including theme and returns them', () async {
       when(() => mockDataSource.saveSetting(any(), any()))
           .thenAnswer((_) async {});
 
-      const settings = HapticSoundSettings(
-        soundEnabled: false,
-        vibrationEnabled: true,
-        notificationSound: 'urgent',
-        hapticIntensity: 'heavy',
+      const settings = AppSettings(
+        hapticSound: HapticSoundSettings(
+          soundEnabled: false,
+          notificationSound: 'urgent',
+        ),
+        theme: ThemeSettings(themeMode: 'light', colorName: 'teal'),
       );
 
-      final result = await repository.saveHapticSoundSettings(settings);
+      final result = await repository.saveSettings(settings);
 
       expect(result, Right(settings));
       verify(() => mockDataSource.saveSetting('sound_enabled', 'false'))
           .called(1);
-      verify(() => mockDataSource.saveSetting('vibration_enabled', 'true'))
+      verify(() => mockDataSource.saveSetting('theme_mode', 'light'))
           .called(1);
-      verify(() => mockDataSource.saveSetting('notification_sound', 'urgent'))
-          .called(1);
-      verify(() => mockDataSource.saveSetting('haptic_intensity', 'heavy'))
+      verify(() => mockDataSource.saveSetting('color_name', 'teal'))
           .called(1);
     });
 
@@ -102,8 +107,8 @@ void main() {
       when(() => mockDataSource.saveSetting(any(), any()))
           .thenThrow(const DatabaseException('error'));
 
-      final result = await repository
-          .saveHapticSoundSettings(const HapticSoundSettings());
+      final result =
+          await repository.saveSettings(const AppSettings());
 
       expect(result.isLeft(), true);
     });

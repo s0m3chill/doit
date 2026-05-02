@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
+import 'package:doit/features/settings/domain/entities/app_settings.dart';
 
 abstract class SettingsState extends Equatable {
   const SettingsState();
@@ -17,7 +17,7 @@ class SettingsLoading extends SettingsState {
 }
 
 class SettingsLoaded extends SettingsState {
-  final HapticSoundSettings settings;
+  final AppSettings settings;
 
   const SettingsLoaded(this.settings);
 

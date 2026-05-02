@@ -1,10 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:doit/core/error/failures.dart';
-import 'package:doit/features/settings/domain/entities/haptic_sound_settings.dart';
+import 'package:doit/features/settings/domain/entities/app_settings.dart';
 
-/// Repository contract for app settings persistence.
+/// Repository contract for all app settings persistence.
 abstract class SettingsRepository {
-  Future<Either<Failure, HapticSoundSettings>> getHapticSoundSettings();
-  Future<Either<Failure, HapticSoundSettings>> saveHapticSoundSettings(
-      HapticSoundSettings settings);
+  Future<Either<Failure, AppSettings>> getSettings();
+  Future<Either<Failure, AppSettings>> saveSettings(AppSettings settings);
 }
