@@ -6,6 +6,7 @@ import 'package:doit/features/reminder/domain/entities/reminder.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/widgets/quick_time_grid.dart';
+import 'package:doit/features/reminder/domain/services/natural_date_parser.dart';
 
 /// Add or edit a reminder — polished card-based layout.
 class AddEditReminderPage extends StatefulWidget {
@@ -24,6 +25,8 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
   bool _autoSnoozeEnabled = true;
   int _autoSnoozeInterval = 5;
   int _autoSnoozeMaxCount = 5;
+  final _dateParser = NaturalDateParser();
+  TitleParseResult? _parsedFromTitle;
 
   bool get _isEditing => widget.reminder != null;
 
@@ -78,10 +81,35 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) {
+                  setState(() {
+                    _parsedFromTitle =
+                        _dateParser.parseFromTitle(_titleController.text);
+                  });
+                },
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // ── Parsed date suggestion (like Due's "Set to:" button) ──
+            if (_parsedFromTitle != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _SetToButton(
+                  parsedResult: _parsedFromTitle!,
+                  onAccept: () {
+                    setState(() {
+                      _selectedDueDate = _parsedFromTitle!.date;
+                      _titleController.text = _parsedFromTitle!.cleanTitle;
+                      _titleController.selection = TextSelection.fromPosition(
+                        TextPosition(
+                            offset: _parsedFromTitle!.cleanTitle.length),
+                      );
+                      _parsedFromTitle = null;
+                    });
+                  },
+                ),
+              ),
 
             // ── Quick time grid ──
             _SectionCard(
@@ -372,5 +400,78 @@ class _MaxSnoozeCountSelector extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+}
+
+// ─── "Set to:" suggestion button (matches Due's UX) ─────────────────────────
+
+class _SetToButton extends StatelessWidget {
+  final TitleParseResult parsedResult;
+  final VoidCallback onAccept;
+
+  const _SetToButton({required this.parsedResult, required this.onAccept});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final formatted = _formatDate(parsedResult.date);
+
+    return GestureDetector(
+      onTap: onAccept,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.event_available,
+                size: 20, color: colorScheme.onPrimaryContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Set to: ',
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w400,
+                        fontSize: 14,
+                      ),
+                    ),
+                    TextSpan(
+                      text: formatted,
+                      style: TextStyle(
+                        color: colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Icon(Icons.check,
+                size: 20, color: colorScheme.onPrimaryContainer),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime dt) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(dt.year, dt.month, dt.day);
+    final diff = target.difference(today).inDays;
+    final timeStr = DateFormat.jm().format(dt);
+
+    if (diff == 0) return 'Today, $timeStr';
+    if (diff == 1) return 'Tomorrow, $timeStr';
+    if (diff < 7) return '${DateFormat.EEEE().format(dt)}, $timeStr';
+    return '${DateFormat.yMMMd().format(dt)}, $timeStr';
   }
 }
