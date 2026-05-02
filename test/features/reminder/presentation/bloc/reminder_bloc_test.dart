@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doit/core/error/failures.dart';
+import 'package:doit/core/services/auto_snooze_scheduler.dart';
+import 'package:doit/core/services/notification_service.dart';
 import 'package:doit/core/usecases/usecase.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
+import 'package:doit/features/reminder/domain/services/repeat_scheduler.dart';
 import 'package:doit/features/reminder/domain/usecases/get_all_reminders.dart';
 import 'package:doit/features/reminder/domain/usecases/get_active_reminders.dart';
 import 'package:doit/features/reminder/domain/usecases/get_completed_reminders.dart';
@@ -19,21 +22,16 @@ import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_state.dart';
 
 class MockGetAllReminders extends Mock implements GetAllReminders {}
-
 class MockGetActiveReminders extends Mock implements GetActiveReminders {}
-
 class MockGetCompletedReminders extends Mock implements GetCompletedReminders {}
-
 class MockCreateReminder extends Mock implements CreateReminder {}
-
 class MockUpdateReminder extends Mock implements UpdateReminder {}
-
 class MockDeleteReminder extends Mock implements DeleteReminder {}
-
 class MockCompleteReminder extends Mock implements CompleteReminder {}
-
 class MockSnoozeReminder extends Mock implements SnoozeReminder {}
-
+class MockNotificationService extends Mock implements NotificationService {}
+class MockAutoSnoozeScheduler extends Mock implements AutoSnoozeScheduler {}
+class MockRepeatScheduler extends Mock implements RepeatScheduler {}
 class MockUuid extends Mock implements Uuid {}
 
 void main() {
@@ -46,6 +44,9 @@ void main() {
   late MockDeleteReminder mockDeleteReminder;
   late MockCompleteReminder mockCompleteReminder;
   late MockSnoozeReminder mockSnoozeReminder;
+  late MockNotificationService mockNotificationService;
+  late MockAutoSnoozeScheduler mockAutoSnoozeScheduler;
+  late MockRepeatScheduler mockRepeatScheduler;
   late MockUuid mockUuid;
 
   setUp(() {
@@ -57,6 +58,9 @@ void main() {
     mockDeleteReminder = MockDeleteReminder();
     mockCompleteReminder = MockCompleteReminder();
     mockSnoozeReminder = MockSnoozeReminder();
+    mockNotificationService = MockNotificationService();
+    mockAutoSnoozeScheduler = MockAutoSnoozeScheduler();
+    mockRepeatScheduler = MockRepeatScheduler();
     mockUuid = MockUuid();
 
     bloc = ReminderBloc(
@@ -68,6 +72,9 @@ void main() {
       deleteReminder: mockDeleteReminder,
       completeReminder: mockCompleteReminder,
       snoozeReminder: mockSnoozeReminder,
+      notificationService: mockNotificationService,
+      autoSnoozeScheduler: mockAutoSnoozeScheduler,
+      repeatScheduler: mockRepeatScheduler,
       uuid: mockUuid,
     );
   });
@@ -99,6 +106,12 @@ void main() {
       updatedAt: now,
     ),
   ];
+
+  /// Stub auto-snooze sync to succeed (called on every reload).
+  void stubAutoSnoozeSync() {
+    when(() => mockAutoSnoozeScheduler.syncAllSnoozes(any()))
+        .thenAnswer((_) async {});
+  }
 
   test('initial state should be ReminderInitial', () {
     expect(bloc.state, const ReminderInitial());
@@ -136,10 +149,11 @@ void main() {
 
   group('LoadActiveReminders', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, Loaded] when successful',
+      'emits [Loading, Loaded] and syncs auto-snooze',
       build: () {
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
+        stubAutoSnoozeSync();
         return bloc;
       },
       act: (bloc) => bloc.add(const LoadActiveReminders()),
@@ -147,18 +161,29 @@ void main() {
         const ReminderLoading(),
         ReminderLoaded(tReminders),
       ],
+      verify: (_) {
+        verify(() => mockAutoSnoozeScheduler.syncAllSnoozes(tReminders))
+            .called(1);
+      },
     );
   });
 
   group('AddReminder', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, OperationSuccess, Loaded] when successful',
+      'emits [Loading, OperationSuccess, Loaded] and schedules notification',
       build: () {
         when(() => mockUuid.v4()).thenReturn('generated-uuid');
         when(() => mockCreateReminder(any()))
             .thenAnswer((_) async => Right(tReminders.first));
+        when(() => mockNotificationService.scheduleNotification(
+              id: any(named: 'id'),
+              title: any(named: 'title'),
+              body: any(named: 'body'),
+              scheduledDate: any(named: 'scheduledDate'),
+            )).thenAnswer((_) async => const Right(null));
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
+        stubAutoSnoozeSync();
         return bloc;
       },
       act: (bloc) => bloc.add(AddReminder(
@@ -177,7 +202,8 @@ void main() {
       build: () {
         when(() => mockUuid.v4()).thenReturn('generated-uuid');
         when(() => mockCreateReminder(any())).thenAnswer(
-            (_) async => const Left(ValidationFailure('Title cannot be empty')));
+            (_) async =>
+                const Left(ValidationFailure('Title cannot be empty')));
         return bloc;
       },
       act: (bloc) => bloc.add(AddReminder(
@@ -193,12 +219,17 @@ void main() {
 
   group('RemoveReminder', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, OperationSuccess, Loaded] when successful',
+      'emits [Loading, OperationSuccess, Loaded] and cancels notifications',
       build: () {
+        when(() => mockNotificationService.cancelNotification(any()))
+            .thenAnswer((_) async => const Right(null));
+        when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
+            .thenAnswer((_) async {});
         when(() => mockDeleteReminder(any()))
             .thenAnswer((_) async => const Right(null));
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => const Right([]));
+        stubAutoSnoozeSync();
         return bloc;
       },
       act: (bloc) => bloc.add(const RemoveReminder(id: '1')),
@@ -207,17 +238,28 @@ void main() {
         const ReminderOperationSuccess('Reminder deleted'),
         const ReminderLoaded([]),
       ],
+      verify: (_) {
+        verify(() => mockNotificationService.cancelNotification(any()))
+            .called(1);
+        verify(() => mockAutoSnoozeScheduler.cancelSnooze('1')).called(1);
+      },
     );
   });
 
   group('MarkReminderComplete', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, OperationSuccess, Loaded] when successful',
+      'completes non-recurring reminder and cancels notifications',
       build: () {
+        final completedReminder = tReminders.first.copyWith(isCompleted: true);
         when(() => mockCompleteReminder(any()))
-            .thenAnswer((_) async => Right(tReminders.first));
+            .thenAnswer((_) async => Right(completedReminder));
+        when(() => mockNotificationService.cancelNotification(any()))
+            .thenAnswer((_) async => const Right(null));
+        when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
+            .thenAnswer((_) async {});
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => const Right([]));
+        stubAutoSnoozeSync();
         return bloc;
       },
       act: (bloc) => bloc.add(const MarkReminderComplete(id: '1')),
@@ -227,16 +269,92 @@ void main() {
         const ReminderLoaded([]),
       ],
     );
+
+    blocTest<ReminderBloc, ReminderState>(
+      'completes recurring reminder and creates next occurrence',
+      build: () {
+        final recurringReminder = Reminder(
+          id: '1',
+          title: 'Daily Task',
+          dueDate: now,
+          isCompleted: true,
+          repeatInterval: 'daily',
+          createdAt: now,
+          updatedAt: now,
+        );
+        final nextReminder = Reminder(
+          id: 'next-id',
+          title: 'Daily Task',
+          dueDate: DateTime(2025, 1, 2),
+          repeatInterval: 'daily',
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        when(() => mockCompleteReminder(any()))
+            .thenAnswer((_) async => Right(recurringReminder));
+        when(() => mockNotificationService.cancelNotification(any()))
+            .thenAnswer((_) async => const Right(null));
+        when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
+            .thenAnswer((_) async {});
+        when(() => mockRepeatScheduler.computeNextOccurrence(
+              completed: any(named: 'completed'),
+              newId: any(named: 'newId'),
+              now: any(named: 'now'),
+            )).thenReturn(nextReminder);
+        when(() => mockUuid.v4()).thenReturn('next-id');
+        when(() => mockCreateReminder(any()))
+            .thenAnswer((_) async => Right(nextReminder));
+        when(() => mockNotificationService.scheduleNotification(
+              id: any(named: 'id'),
+              title: any(named: 'title'),
+              body: any(named: 'body'),
+              scheduledDate: any(named: 'scheduledDate'),
+            )).thenAnswer((_) async => const Right(null));
+        when(() => mockGetActiveReminders(any()))
+            .thenAnswer((_) async => Right([nextReminder]));
+        stubAutoSnoozeSync();
+        return bloc;
+      },
+      act: (bloc) => bloc.add(const MarkReminderComplete(id: '1')),
+      expect: () => [
+        const ReminderLoading(),
+        const ReminderOperationSuccess('Reminder completed'),
+        isA<ReminderLoaded>(),
+      ],
+      verify: (_) {
+        verify(() => mockRepeatScheduler.computeNextOccurrence(
+              completed: any(named: 'completed'),
+              newId: 'next-id',
+              now: any(named: 'now'),
+            )).called(1);
+        verify(() => mockCreateReminder(any())).called(1);
+      },
+    );
   });
 
   group('SnoozeReminderEvent', () {
     blocTest<ReminderBloc, ReminderState>(
-      'emits [Loading, OperationSuccess, Loaded] when successful',
+      'snoozes and reschedules notification',
       build: () {
+        final snoozedReminder = tReminders.first.copyWith(
+          dueDate: now.add(const Duration(minutes: 15)),
+        );
         when(() => mockSnoozeReminder(any()))
-            .thenAnswer((_) async => Right(tReminders.first));
+            .thenAnswer((_) async => Right(snoozedReminder));
+        when(() => mockNotificationService.cancelNotification(any()))
+            .thenAnswer((_) async => const Right(null));
+        when(() => mockNotificationService.scheduleNotification(
+              id: any(named: 'id'),
+              title: any(named: 'title'),
+              body: any(named: 'body'),
+              scheduledDate: any(named: 'scheduledDate'),
+            )).thenAnswer((_) async => const Right(null));
+        when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
+            .thenAnswer((_) async {});
         when(() => mockGetActiveReminders(any()))
             .thenAnswer((_) async => Right(tReminders));
+        stubAutoSnoozeSync();
         return bloc;
       },
       act: (bloc) => bloc.add(const SnoozeReminderEvent(
@@ -248,6 +366,65 @@ void main() {
         const ReminderOperationSuccess('Snoozed for 15 minutes'),
         ReminderLoaded(tReminders),
       ],
+    );
+  });
+
+  group('ToggleAutoSnooze', () {
+    blocTest<ReminderBloc, ReminderState>(
+      'disables auto-snooze and cancels snooze notifications',
+      build: () {
+        when(() => mockGetAllReminders(any()))
+            .thenAnswer((_) async => Right(tReminders));
+        when(() => mockUpdateReminder(any()))
+            .thenAnswer((_) async => Right(
+                  tReminders.first.copyWith(autoSnoozeEnabled: false),
+                ));
+        when(() => mockAutoSnoozeScheduler.cancelSnooze(any()))
+            .thenAnswer((_) async {});
+        when(() => mockGetActiveReminders(any()))
+            .thenAnswer((_) async => Right(tReminders));
+        stubAutoSnoozeSync();
+        return bloc;
+      },
+      act: (bloc) =>
+          bloc.add(const ToggleAutoSnooze(id: '1', enabled: false)),
+      expect: () => [
+        const ReminderLoading(),
+        const ReminderOperationSuccess('Auto-snooze disabled'),
+        ReminderLoaded(tReminders),
+      ],
+      verify: (_) {
+        verify(() => mockAutoSnoozeScheduler.cancelSnooze('1')).called(1);
+      },
+    );
+
+    blocTest<ReminderBloc, ReminderState>(
+      'enables auto-snooze and schedules snooze',
+      build: () {
+        when(() => mockGetAllReminders(any()))
+            .thenAnswer((_) async => Right(tReminders));
+        when(() => mockUpdateReminder(any()))
+            .thenAnswer((_) async => Right(
+                  tReminders.first.copyWith(autoSnoozeEnabled: true),
+                ));
+        when(() => mockAutoSnoozeScheduler.scheduleNextSnooze(any()))
+            .thenAnswer((_) async {});
+        when(() => mockGetActiveReminders(any()))
+            .thenAnswer((_) async => Right(tReminders));
+        stubAutoSnoozeSync();
+        return bloc;
+      },
+      act: (bloc) =>
+          bloc.add(const ToggleAutoSnooze(id: '1', enabled: true)),
+      expect: () => [
+        const ReminderLoading(),
+        const ReminderOperationSuccess('Auto-snooze enabled'),
+        ReminderLoaded(tReminders),
+      ],
+      verify: (_) {
+        verify(() => mockAutoSnoozeScheduler.scheduleNextSnooze(any()))
+            .called(1);
+      },
     );
   });
 }

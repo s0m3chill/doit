@@ -10,6 +10,8 @@ void main() {
     dueDate: now,
     isCompleted: false,
     repeatInterval: 'none',
+    autoSnoozeEnabled: true,
+    autoSnoozeInterval: 5,
     snoozeMinutes: null,
     createdAt: now,
     updatedAt: now,
@@ -28,6 +30,8 @@ void main() {
       expect(map['due_date'], now.millisecondsSinceEpoch);
       expect(map['is_completed'], 0);
       expect(map['repeat_interval'], 'none');
+      expect(map['auto_snooze_enabled'], 1);
+      expect(map['auto_snooze_interval'], 5);
       expect(map['snooze_minutes'], null);
       expect(map['created_at'], now.millisecondsSinceEpoch);
       expect(map['updated_at'], now.millisecondsSinceEpoch);
@@ -40,6 +44,8 @@ void main() {
         'due_date': now.millisecondsSinceEpoch,
         'is_completed': 0,
         'repeat_interval': 'none',
+        'auto_snooze_enabled': 1,
+        'auto_snooze_interval': 5,
         'snooze_minutes': null,
         'created_at': now.millisecondsSinceEpoch,
         'updated_at': now.millisecondsSinceEpoch,
@@ -52,6 +58,8 @@ void main() {
       expect(model.dueDate, now);
       expect(model.isCompleted, false);
       expect(model.repeatInterval, 'none');
+      expect(model.autoSnoozeEnabled, true);
+      expect(model.autoSnoozeInterval, 5);
       expect(model.snoozeMinutes, null);
     });
 
@@ -62,6 +70,8 @@ void main() {
         'due_date': now.millisecondsSinceEpoch,
         'is_completed': 1,
         'repeat_interval': 'daily',
+        'auto_snooze_enabled': 0,
+        'auto_snooze_interval': 15,
         'snooze_minutes': 5,
         'created_at': now.millisecondsSinceEpoch,
         'updated_at': now.millisecondsSinceEpoch,
@@ -71,7 +81,29 @@ void main() {
 
       expect(model.isCompleted, true);
       expect(model.repeatInterval, 'daily');
+      expect(model.autoSnoozeEnabled, false);
+      expect(model.autoSnoozeInterval, 15);
       expect(model.snoozeMinutes, 5);
+    });
+
+    test('should default auto_snooze_enabled to true when null in map', () {
+      final map = {
+        'id': '1',
+        'title': 'Test',
+        'due_date': now.millisecondsSinceEpoch,
+        'is_completed': 0,
+        'repeat_interval': 'none',
+        'auto_snooze_enabled': null,
+        'auto_snooze_interval': null,
+        'snooze_minutes': null,
+        'created_at': now.millisecondsSinceEpoch,
+        'updated_at': now.millisecondsSinceEpoch,
+      };
+
+      final model = ReminderModel.fromMap(map);
+
+      expect(model.autoSnoozeEnabled, true);
+      expect(model.autoSnoozeInterval, 5);
     });
 
     test('should create model from entity', () {
@@ -81,6 +113,8 @@ void main() {
         dueDate: now,
         isCompleted: true,
         repeatInterval: 'weekly',
+        autoSnoozeEnabled: false,
+        autoSnoozeInterval: 30,
         snoozeMinutes: 10,
         createdAt: now,
         updatedAt: now,
@@ -92,6 +126,8 @@ void main() {
       expect(model.title, entity.title);
       expect(model.isCompleted, entity.isCompleted);
       expect(model.repeatInterval, entity.repeatInterval);
+      expect(model.autoSnoozeEnabled, entity.autoSnoozeEnabled);
+      expect(model.autoSnoozeInterval, entity.autoSnoozeInterval);
       expect(model.snoozeMinutes, entity.snoozeMinutes);
     });
 
@@ -103,6 +139,8 @@ void main() {
         dueDate: now,
         isCompleted: false,
         repeatInterval: 'monthly',
+        autoSnoozeEnabled: true,
+        autoSnoozeInterval: 10,
         snoozeMinutes: 30,
         createdAt: now,
         updatedAt: now,

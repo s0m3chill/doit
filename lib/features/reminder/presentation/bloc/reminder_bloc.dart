@@ -1,7 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:uuid/uuid.dart';
+import 'package:doit/core/services/auto_snooze_scheduler.dart';
+import 'package:doit/core/services/notification_service.dart';
 import 'package:doit/core/usecases/usecase.dart';
+import 'package:doit/core/utils/notification_id_helper.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
+import 'package:doit/features/reminder/domain/services/repeat_scheduler.dart';
 import 'package:doit/features/reminder/domain/usecases/get_all_reminders.dart';
 import 'package:doit/features/reminder/domain/usecases/get_active_reminders.dart';
 import 'package:doit/features/reminder/domain/usecases/get_completed_reminders.dart';
@@ -22,6 +26,9 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
   final DeleteReminder deleteReminder;
   final CompleteReminder completeReminder;
   final SnoozeReminder snoozeReminder;
+  final NotificationService notificationService;
+  final AutoSnoozeScheduler autoSnoozeScheduler;
+  final RepeatScheduler repeatScheduler;
   final Uuid _uuid;
 
   ReminderBloc({
@@ -33,6 +40,9 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     required this.deleteReminder,
     required this.completeReminder,
     required this.snoozeReminder,
+    required this.notificationService,
+    required this.autoSnoozeScheduler,
+    required this.repeatScheduler,
     Uuid? uuid,
   })  : _uuid = uuid ?? const Uuid(),
         super(const ReminderInitial()) {
@@ -44,6 +54,7 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     on<RemoveReminder>(_onRemoveReminder);
     on<MarkReminderComplete>(_onMarkReminderComplete);
     on<SnoozeReminderEvent>(_onSnoozeReminder);
+    on<ToggleAutoSnooze>(_onToggleAutoSnooze);
   }
 
   Future<void> _onLoadReminders(
@@ -64,9 +75,13 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
   ) async {
     emit(const ReminderLoading());
     final result = await getActiveReminders(const NoParams());
-    result.fold(
-      (failure) => emit(ReminderError(failure.message)),
-      (reminders) => emit(ReminderLoaded(reminders)),
+    await result.fold(
+      (failure) async => emit(ReminderError(failure.message)),
+      (reminders) async {
+        // Sync auto-snooze state on every load.
+        await autoSnoozeScheduler.syncAllSnoozes(reminders);
+        emit(ReminderLoaded(reminders));
+      },
     );
   }
 
@@ -93,19 +108,19 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
       title: event.title,
       dueDate: event.dueDate,
       repeatInterval: event.repeatInterval,
+      autoSnoozeEnabled: event.autoSnoozeEnabled,
+      autoSnoozeInterval: event.autoSnoozeInterval,
       createdAt: now,
       updatedAt: now,
     );
     final result = await createReminder(reminder);
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
-      (_) async {
+      (created) async {
+        // Schedule the initial due-date notification.
+        await _scheduleNotification(created);
         emit(const ReminderOperationSuccess('Reminder created'));
-        final loadResult = await getActiveReminders(const NoParams());
-        loadResult.fold(
-          (failure) => emit(ReminderError(failure.message)),
-          (reminders) => emit(ReminderLoaded(reminders)),
-        );
+        await _reloadActive(emit);
       },
     );
   }
@@ -121,19 +136,20 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
       title: event.title,
       dueDate: event.dueDate,
       repeatInterval: event.repeatInterval,
-      createdAt: now, // Will be preserved by repository
+      autoSnoozeEnabled: event.autoSnoozeEnabled,
+      autoSnoozeInterval: event.autoSnoozeInterval,
+      createdAt: now,
       updatedAt: now,
     );
     final result = await updateReminder(reminder);
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
-      (_) async {
+      (updated) async {
+        // Reschedule notification with new time.
+        await _cancelNotification(updated.id);
+        await _scheduleNotification(updated);
         emit(const ReminderOperationSuccess('Reminder updated'));
-        final loadResult = await getActiveReminders(const NoParams());
-        loadResult.fold(
-          (failure) => emit(ReminderError(failure.message)),
-          (reminders) => emit(ReminderLoaded(reminders)),
-        );
+        await _reloadActive(emit);
       },
     );
   }
@@ -143,16 +159,16 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     Emitter<ReminderState> emit,
   ) async {
     emit(const ReminderLoading());
+    // Cancel all notifications for this reminder.
+    await _cancelNotification(event.id);
+    await autoSnoozeScheduler.cancelSnooze(event.id);
+
     final result = await deleteReminder(event.id);
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
       (_) async {
         emit(const ReminderOperationSuccess('Reminder deleted'));
-        final loadResult = await getActiveReminders(const NoParams());
-        loadResult.fold(
-          (failure) => emit(ReminderError(failure.message)),
-          (reminders) => emit(ReminderLoaded(reminders)),
-        );
+        await _reloadActive(emit);
       },
     );
   }
@@ -165,13 +181,29 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     final result = await completeReminder(event.id);
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
-      (_) async {
+      (completed) async {
+        // Cancel notifications for the completed reminder.
+        await _cancelNotification(completed.id);
+        await autoSnoozeScheduler.cancelSnooze(completed.id);
+
+        // If recurring, auto-create the next occurrence.
+        if (completed.isRecurring) {
+          final next = repeatScheduler.computeNextOccurrence(
+            completed: completed,
+            newId: _uuid.v4(),
+            now: DateTime.now(),
+          );
+          if (next != null) {
+            final createResult = await createReminder(next);
+            await createResult.fold(
+              (_) async {},
+              (created) async => await _scheduleNotification(created),
+            );
+          }
+        }
+
         emit(const ReminderOperationSuccess('Reminder completed'));
-        final loadResult = await getActiveReminders(const NoParams());
-        loadResult.fold(
-          (failure) => emit(ReminderError(failure.message)),
-          (reminders) => emit(ReminderLoaded(reminders)),
-        );
+        await _reloadActive(emit);
       },
     );
   }
@@ -188,14 +220,82 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
     final result = await snoozeReminder(params);
     await result.fold(
       (failure) async => emit(ReminderError(failure.message)),
-      (_) async {
+      (snoozed) async {
+        // Reschedule notification to the new due date.
+        await _cancelNotification(snoozed.id);
+        await _scheduleNotification(snoozed);
+        await autoSnoozeScheduler.cancelSnooze(snoozed.id);
+
         emit(ReminderOperationSuccess(
             'Snoozed for ${event.snoozeMinutes} minutes'));
-        final loadResult = await getActiveReminders(const NoParams());
-        loadResult.fold(
-          (failure) => emit(ReminderError(failure.message)),
-          (reminders) => emit(ReminderLoaded(reminders)),
+        await _reloadActive(emit);
+      },
+    );
+  }
+
+  Future<void> _onToggleAutoSnooze(
+    ToggleAutoSnooze event,
+    Emitter<ReminderState> emit,
+  ) async {
+    emit(const ReminderLoading());
+    // We need to fetch the current reminder, toggle the flag, and update.
+    final getResult = await getAllReminders(const NoParams());
+    await getResult.fold(
+      (failure) async => emit(ReminderError(failure.message)),
+      (reminders) async {
+        final target = reminders.where((r) => r.id == event.id).firstOrNull;
+        if (target == null) {
+          emit(const ReminderError('Reminder not found'));
+          return;
+        }
+        final updated = target.copyWith(
+          autoSnoozeEnabled: event.enabled,
+          updatedAt: DateTime.now(),
         );
+        final updateResult = await updateReminder(updated);
+        await updateResult.fold(
+          (failure) async => emit(ReminderError(failure.message)),
+          (result) async {
+            if (!event.enabled) {
+              await autoSnoozeScheduler.cancelSnooze(event.id);
+            } else {
+              await autoSnoozeScheduler.scheduleNextSnooze(result);
+            }
+            emit(ReminderOperationSuccess(
+              event.enabled ? 'Auto-snooze enabled' : 'Auto-snooze disabled',
+            ));
+            await _reloadActive(emit);
+          },
+        );
+      },
+    );
+  }
+
+  // ── Helpers ──
+
+  Future<void> _scheduleNotification(Reminder reminder) async {
+    if (reminder.dueDate.isAfter(DateTime.now())) {
+      await notificationService.scheduleNotification(
+        id: NotificationIdHelper.primaryId(reminder.id),
+        title: 'DoIt: ${reminder.title}',
+        body: 'Time to do it!',
+        scheduledDate: reminder.dueDate,
+      );
+    }
+  }
+
+  Future<void> _cancelNotification(String reminderId) async {
+    await notificationService
+        .cancelNotification(NotificationIdHelper.primaryId(reminderId));
+  }
+
+  Future<void> _reloadActive(Emitter<ReminderState> emit) async {
+    final loadResult = await getActiveReminders(const NoParams());
+    await loadResult.fold(
+      (failure) async => emit(ReminderError(failure.message)),
+      (reminders) async {
+        await autoSnoozeScheduler.syncAllSnoozes(reminders);
+        emit(ReminderLoaded(reminders));
       },
     );
   }

@@ -33,6 +33,8 @@ void main() {
     id: '1',
     title: 'Test',
     dueDate: now,
+    autoSnoozeEnabled: true,
+    autoSnoozeInterval: 5,
     createdAt: now,
     updatedAt: now,
   );
@@ -112,6 +114,8 @@ void main() {
                 title: tModel.title,
                 dueDate: tModel.dueDate,
                 isCompleted: true,
+                autoSnoozeEnabled: tModel.autoSnoozeEnabled,
+                autoSnoozeInterval: tModel.autoSnoozeInterval,
                 createdAt: tModel.createdAt,
                 updatedAt: tModel.updatedAt,
               ));

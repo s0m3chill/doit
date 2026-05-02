@@ -32,9 +32,20 @@ class DatabaseHelper {
         due_date INTEGER NOT NULL,
         is_completed INTEGER NOT NULL DEFAULT 0,
         repeat_interval TEXT NOT NULL DEFAULT 'none',
+        auto_snooze_enabled INTEGER NOT NULL DEFAULT 1,
+        auto_snooze_interval INTEGER NOT NULL DEFAULT 5,
         snooze_minutes INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE timers (
+        id TEXT PRIMARY KEY,
+        label TEXT NOT NULL,
+        duration_seconds INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
       )
     ''');
   }
