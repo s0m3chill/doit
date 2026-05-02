@@ -285,4 +285,19 @@ class AppLocalizationsPl extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get language => 'Język';
+
+  @override
+  String get languageSystem => 'Systemowy';
+
+  @override
+  String get languageEnglish => 'English';
+
+  @override
+  String get languageUkrainian => 'Українська';
+
+  @override
+  String get languagePolish => 'Polski';
 }

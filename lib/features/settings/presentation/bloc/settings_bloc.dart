@@ -24,6 +24,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     on<ChangeHapticIntensity>(_onChangeHapticIntensity);
     on<ChangeThemeMode>(_onChangeThemeMode);
     on<ChangeThemeColor>(_onChangeThemeColor);
+    on<ChangeLanguage>(_onChangeLanguage);
   }
 
   Future<void> _onLoadSettings(
@@ -114,6 +115,16 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     final updated = current.copyWith(
       theme: current.theme.copyWith(colorName: event.colorName),
     );
+    await _saveAndEmit(updated, emit);
+  }
+
+  Future<void> _onChangeLanguage(
+    ChangeLanguage event,
+    Emitter<SettingsState> emit,
+  ) async {
+    final current = _current;
+    if (current == null) return;
+    final updated = current.copyWith(language: event.language);
     await _saveAndEmit(updated, emit);
   }
 

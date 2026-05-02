@@ -104,5 +104,11 @@
 
   "naturalDateHint": "np. \"jutro o 15:00\", \"za 2 godziny\"",
 
-  "overdueCount": "{count, plural, =1{1 zaległe} few{{count} zaległe} other{{count} zaległych}}"
+  "overdueCount": "{count, plural, =1{1 zaległe} few{{count} zaległe} other{{count} zaległych}}",
+
+  "language": "Język",
+  "languageSystem": "Systemowy",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languagePolish": "Polski"
 }

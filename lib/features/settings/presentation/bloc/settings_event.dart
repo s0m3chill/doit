@@ -62,3 +62,13 @@ class ChangeThemeColor extends SettingsEvent {
   @override
   List<Object?> get props => [colorName];
 }
+
+// ── Language ──
+
+class ChangeLanguage extends SettingsEvent {
+  final String language; // 'system', 'en', 'uk', 'pl'
+  const ChangeLanguage({required this.language});
+
+  @override
+  List<Object?> get props => [language];
+}

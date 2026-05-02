@@ -22,6 +22,9 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const _themeMode = 'theme_mode';
   static const _colorName = 'color_name';
 
+  // Language key
+  static const _language = 'language';
+
   @override
   Future<Either<Failure, AppSettings>> getSettings() async {
     try {
@@ -37,6 +40,7 @@ class SettingsRepositoryImpl implements SettingsRepository {
           themeMode: map[_themeMode] ?? 'system',
           colorName: map[_colorName] ?? 'deepPurple',
         ),
+        language: map[_language] ?? 'system',
       ));
     } on DatabaseException catch (e) {
       return Left(DatabaseFailure(e.message));
@@ -60,6 +64,8 @@ class SettingsRepositoryImpl implements SettingsRepository {
       final ts = settings.theme;
       await localDataSource.saveSetting(_themeMode, ts.themeMode);
       await localDataSource.saveSetting(_colorName, ts.colorName);
+
+      await localDataSource.saveSetting(_language, settings.language);
 
       return Right(settings);
     } on DatabaseException catch (e) {

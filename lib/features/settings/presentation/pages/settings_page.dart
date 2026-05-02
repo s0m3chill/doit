@@ -136,6 +136,21 @@ class SettingsPage extends StatelessWidget {
                 ],
               ),
 
+              // ── Language ──
+              _SectionHeader(title: l10n.language),
+              _SettingsCard(
+                children: [
+                  _LanguagePicker(
+                    selected: settings.language,
+                    onChanged: (lang) {
+                      context.read<SettingsBloc>().add(
+                            ChangeLanguage(language: lang),
+                          );
+                    },
+                  ),
+                ],
+              ),
+
               // ── Notifications ──
               _SectionHeader(title: l10n.notifications),
               _SettingsCard(
@@ -349,6 +364,48 @@ class _ColorGrid extends StatelessWidget {
                   : null,
             ),
           ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+// ─── Language picker ────────────────────────────────────────────────────────
+
+class _LanguagePicker extends StatelessWidget {
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  const _LanguagePicker({required this.selected, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final options = [
+      ('system', l10n.languageSystem, '🌐'),
+      ('en', l10n.languageEnglish, '🇬🇧'),
+      ('uk', l10n.languageUkrainian, '🇺🇦'),
+      ('pl', l10n.languagePolish, '🇵🇱'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: options.map((entry) {
+        final (value, label, flag) = entry;
+        final isSelected = selected == value;
+
+        return ListTile(
+          leading: Text(flag, style: const TextStyle(fontSize: 24)),
+          title: Text(label),
+          trailing: isSelected
+              ? Icon(Icons.check_circle, color: colorScheme.primary)
+              : null,
+          onTap: () => onChanged(value),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
         );
       }).toList(),
     );

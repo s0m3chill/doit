@@ -129,5 +129,11 @@
     "placeholders": {
       "count": { "type": "int" }
     }
-  }
+  },
+
+  "language": "Language",
+  "languageSystem": "System",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languagePolish": "Polski"
 }

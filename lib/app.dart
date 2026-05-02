@@ -40,7 +40,7 @@ class DoItApp extends StatelessWidget {
             title: 'DoIt',
             debugShowCheckedModeBanner: false,
             themeMode: themeMode,
-            // Localization
+            locale: _resolveLocale(state),
             localizationsDelegates: const [
               AppLocalizations.delegate,
               GlobalMaterialLocalizations.delegate,
@@ -86,5 +86,22 @@ class DoItApp extends StatelessWidget {
       }
     }
     return ThemeMode.system;
+  }
+
+  /// Returns null for 'system' (lets Flutter pick), or a specific Locale.
+  Locale? _resolveLocale(SettingsState state) {
+    if (state is SettingsLoaded) {
+      switch (state.settings.language) {
+        case 'en':
+          return const Locale('en');
+        case 'uk':
+          return const Locale('uk');
+        case 'pl':
+          return const Locale('pl');
+        default:
+          return null; // system
+      }
+    }
+    return null;
   }
 }

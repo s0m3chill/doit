@@ -104,5 +104,11 @@
 
   "naturalDateHint": "напр. \"завтра о 15:00\", \"через 2 години\"",
 
-  "overdueCount": "{count, plural, =1{1 прострочене} few{{count} прострочені} other{{count} прострочених}}"
+  "overdueCount": "{count, plural, =1{1 прострочене} few{{count} прострочені} other{{count} прострочених}}",
+
+  "language": "Мова",
+  "languageSystem": "Системна",
+  "languageEnglish": "English",
+  "languageUkrainian": "Українська",
+  "languagePolish": "Polski"
 }
