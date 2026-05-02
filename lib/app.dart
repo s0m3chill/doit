@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:doit/core/di/injection_container.dart' as di;
 import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
-import 'package:doit/features/reminder/presentation/pages/reminder_list_page.dart';
 import 'package:doit/features/settings/domain/services/theme_color_palette.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_bloc.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_event.dart';
 import 'package:doit/features/settings/presentation/bloc/settings_state.dart';
+import 'package:doit/features/timer/presentation/bloc/timer_bloc.dart';
+import 'package:doit/features/timer/presentation/bloc/timer_event.dart';
+import 'package:doit/features/shared/presentation/pages/main_shell_page.dart';
 
 class DoItApp extends StatelessWidget {
   const DoItApp({super.key});
@@ -17,12 +19,14 @@ class DoItApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) =>
-              di.sl<SettingsBloc>()..add(const LoadSettings()),
+          create: (_) => di.sl<SettingsBloc>()..add(const LoadSettings()),
         ),
         BlocProvider(
           create: (_) =>
               di.sl<ReminderBloc>()..add(const LoadActiveReminders()),
+        ),
+        BlocProvider(
+          create: (_) => di.sl<TimerBloc>()..add(const LoadTimers()),
         ),
       ],
       child: BlocBuilder<SettingsBloc, SettingsState>(
@@ -44,7 +48,7 @@ class DoItApp extends StatelessWidget {
               useMaterial3: true,
               brightness: Brightness.dark,
             ),
-            home: const ReminderListPage(),
+            home: const MainShellPage(),
           );
         },
       ),
@@ -57,7 +61,7 @@ class DoItApp extends StatelessWidget {
           ThemeColorPalette.hexForName(state.settings.theme.colorName);
       return Color(hex);
     }
-    return const Color(0xFF673AB7); // deepPurple default
+    return const Color(0xFF673AB7);
   }
 
   ThemeMode _resolveThemeMode(SettingsState state) {

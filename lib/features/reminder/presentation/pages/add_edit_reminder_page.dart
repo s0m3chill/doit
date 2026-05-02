@@ -7,8 +7,7 @@ import 'package:doit/features/reminder/presentation/bloc/reminder_bloc.dart';
 import 'package:doit/features/reminder/presentation/bloc/reminder_event.dart';
 import 'package:doit/features/reminder/presentation/widgets/quick_time_grid.dart';
 
-/// Add or edit a reminder.
-/// When [reminder] is provided, we're editing; otherwise creating.
+/// Add or edit a reminder — polished card-based layout.
 class AddEditReminderPage extends StatefulWidget {
   final Reminder? reminder;
 
@@ -24,6 +23,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
   String _repeatInterval = AppConstants.repeatNone;
   bool _autoSnoozeEnabled = true;
   int _autoSnoozeInterval = 5;
+  int _autoSnoozeMaxCount = 5;
 
   bool get _isEditing => widget.reminder != null;
 
@@ -36,6 +36,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
     _repeatInterval = r?.repeatInterval ?? AppConstants.repeatNone;
     _autoSnoozeEnabled = r?.autoSnoozeEnabled ?? true;
     _autoSnoozeInterval = r?.autoSnoozeInterval ?? 5;
+    _autoSnoozeMaxCount = r?.autoSnoozeMaxCount ?? 5;
   }
 
   @override
@@ -47,15 +48,17 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(_isEditing ? 'Edit Reminder' : 'New Reminder'),
         actions: [
-          TextButton(
+          FilledButton(
             onPressed: _canSave ? _save : null,
             child: Text(_isEditing ? 'Save' : 'Add'),
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: SingleChildScrollView(
@@ -63,106 +66,105 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Title field
-            TextField(
-              controller: _titleController,
-              autofocus: !_isEditing,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'What do you need to do?',
-                border: OutlineInputBorder(),
+            // ── Title ──
+            _SectionCard(
+              child: TextField(
+                controller: _titleController,
+                autofocus: !_isEditing,
+                textCapitalization: TextCapitalization.sentences,
+                style: theme.textTheme.titleMedium,
+                decoration: InputDecoration(
+                  hintText: 'What do you need to do?',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+                ),
+                onChanged: (_) => setState(() {}),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
-            const SizedBox(height: 20),
-
-            // Quick time grid — the star of the show
-            QuickTimeGrid(
-              currentSelection: _selectedDueDate,
-              onTimeSelected: (time) {
-                setState(() => _selectedDueDate = time);
-              },
             ),
             const SizedBox(height: 16),
 
-            // Manual date/time picker fallback
-            _DateTimeTile(
-              label: 'Due date',
-              value: _selectedDueDate,
-              onTap: _pickDateTime,
+            // ── Quick time grid ──
+            _SectionCard(
+              child: QuickTimeGrid(
+                currentSelection: _selectedDueDate,
+                onTimeSelected: (time) {
+                  setState(() => _selectedDueDate = time);
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // ── Manual date/time picker ──
+            _SectionCard(
+              child: _DateTimeTile(
+                value: _selectedDueDate,
+                onTap: _pickDateTime,
+              ),
             ),
             const SizedBox(height: 16),
 
-            // Repeat interval
-            _buildRepeatSelector(theme),
+            // ── Repeat ──
+            _SectionCard(
+              child: _RepeatSelector(
+                value: _repeatInterval,
+                onChanged: (v) => setState(() => _repeatInterval = v),
+              ),
+            ),
             const SizedBox(height: 16),
 
-            // Auto-snooze toggle
-            SwitchListTile(
-              title: const Text('Auto-snooze'),
-              subtitle: Text(
-                _autoSnoozeEnabled
-                    ? 'Nags every $_autoSnoozeInterval min when overdue'
-                    : 'Disabled',
+            // ── Auto-snooze ──
+            _SectionCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SwitchListTile(
+                    title: const Text('Auto-snooze'),
+                    subtitle: Text(
+                      _autoSnoozeEnabled
+                          ? 'Nags every $_autoSnoozeInterval min when overdue'
+                          : 'Disabled',
+                    ),
+                    value: _autoSnoozeEnabled,
+                    onChanged: (v) => setState(() => _autoSnoozeEnabled = v),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  if (_autoSnoozeEnabled) ...[
+                    const SizedBox(height: 4),
+                    Text('Interval',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: AppConstants.snoozeIntervals.map((minutes) {
+                        final isSelected = _autoSnoozeInterval == minutes;
+                        return ChoiceChip(
+                          label: Text(minutes >= 60
+                              ? '${minutes ~/ 60}h'
+                              : '${minutes}m'),
+                          selected: isSelected,
+                          onSelected: (_) =>
+                              setState(() => _autoSnoozeInterval = minutes),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                    Text('Max nags',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant)),
+                    const SizedBox(height: 8),
+                    _MaxSnoozeCountSelector(
+                      value: _autoSnoozeMaxCount,
+                      onChanged: (v) =>
+                          setState(() => _autoSnoozeMaxCount = v),
+                    ),
+                  ],
+                ],
               ),
-              value: _autoSnoozeEnabled,
-              onChanged: (v) => setState(() => _autoSnoozeEnabled = v),
-              contentPadding: EdgeInsets.zero,
             ),
-
-            // Auto-snooze interval selector
-            if (_autoSnoozeEnabled) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: AppConstants.snoozeIntervals.map((minutes) {
-                  final isSelected = _autoSnoozeInterval == minutes;
-                  return ChoiceChip(
-                    label: Text(minutes >= 60
-                        ? '${minutes ~/ 60}h'
-                        : '${minutes}m'),
-                    selected: isSelected,
-                    onSelected: (_) =>
-                        setState(() => _autoSnoozeInterval = minutes),
-                  );
-                }).toList(),
-              ),
-            ],
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildRepeatSelector(ThemeData theme) {
-    const intervals = [
-      (AppConstants.repeatNone, 'None'),
-      (AppConstants.repeatDaily, 'Daily'),
-      (AppConstants.repeatWeekly, 'Weekly'),
-      (AppConstants.repeatMonthly, 'Monthly'),
-      (AppConstants.repeatYearly, 'Yearly'),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Repeat', style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        )),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: intervals.map((entry) {
-            final (value, label) = entry;
-            return ChoiceChip(
-              label: Text(label),
-              selected: _repeatInterval == value,
-              onSelected: (_) =>
-                  setState(() => _repeatInterval = value),
-            );
-          }).toList(),
-        ),
-      ],
     );
   }
 
@@ -182,6 +184,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
         repeatInterval: _repeatInterval,
         autoSnoozeEnabled: _autoSnoozeEnabled,
         autoSnoozeInterval: _autoSnoozeInterval,
+        autoSnoozeMaxCount: _autoSnoozeMaxCount,
       ));
     } else {
       bloc.add(AddReminder(
@@ -190,6 +193,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
         repeatInterval: _repeatInterval,
         autoSnoozeEnabled: _autoSnoozeEnabled,
         autoSnoozeInterval: _autoSnoozeInterval,
+        autoSnoozeMaxCount: _autoSnoozeMaxCount,
       ));
     }
 
@@ -203,7 +207,7 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
     final date = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: now,
+      firstDate: now.subtract(const Duration(days: 1)),
       lastDate: now.add(const Duration(days: 365 * 5)),
     );
     if (date == null || !mounted) return;
@@ -217,47 +221,156 @@ class _AddEditReminderPageState extends State<AddEditReminderPage> {
 
     setState(() {
       _selectedDueDate = DateTime(
-        date.year, date.month, date.day, time.hour, time.minute,
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
       );
     });
   }
 }
 
-/// Tappable tile showing the selected date/time or a placeholder.
+// ─── Section card wrapper ───────────────────────────────────────────────────
+
+class _SectionCard extends StatelessWidget {
+  final Widget child;
+
+  const _SectionCard({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+}
+
+// ─── Date/time tile ─────────────────────────────────────────────────────────
+
 class _DateTimeTile extends StatelessWidget {
-  final String label;
   final DateTime? value;
   final VoidCallback onTap;
 
-  const _DateTimeTile({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
+  const _DateTimeTile({required this.value, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final formatted = value != null
         ? DateFormat.yMMMd().add_jm().format(value!)
-        : 'Tap to pick or use quick set above';
+        : 'Tap to pick date & time';
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(
-        Icons.calendar_today,
-        color: theme.colorScheme.primary,
-      ),
-      title: Text(label),
-      subtitle: Text(
-        formatted,
-        style: TextStyle(
-          color: value != null
-              ? theme.colorScheme.primary
-              : theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
       onTap: onTap,
+      child: Row(
+        children: [
+          Icon(Icons.calendar_today,
+              color: colorScheme.primary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Due date', style: theme.textTheme.labelMedium),
+                const SizedBox(height: 2),
+                Text(
+                  formatted,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: value != null
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.edit_calendar,
+              size: 18, color: colorScheme.onSurfaceVariant),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Repeat selector ────────────────────────────────────────────────────────
+
+class _RepeatSelector extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  const _RepeatSelector({required this.value, required this.onChanged});
+
+  static const _intervals = [
+    (AppConstants.repeatNone, 'None'),
+    (AppConstants.repeatDaily, 'Daily'),
+    (AppConstants.repeatWeekly, 'Weekly'),
+    (AppConstants.repeatMonthly, 'Monthly'),
+    (AppConstants.repeatYearly, 'Yearly'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Repeat',
+            style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _intervals.map((entry) {
+            final (val, label) = entry;
+            return ChoiceChip(
+              label: Text(label),
+              selected: value == val,
+              onSelected: (_) => onChanged(val),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Max snooze count selector ──────────────────────────────────────────────
+
+class _MaxSnoozeCountSelector extends StatelessWidget {
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  const _MaxSnoozeCountSelector({
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // 1-10 plus ∞ (0 = indefinite)
+    final options = <int>[...List.generate(10, (i) => i + 1), 0];
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options.map((count) {
+        final label = count == 0 ? '∞' : '$count';
+        return ChoiceChip(
+          label: Text(label),
+          selected: value == count,
+          onSelected: (_) => onChanged(count),
+        );
+      }).toList(),
     );
   }
 }
