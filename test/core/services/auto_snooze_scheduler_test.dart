@@ -25,6 +25,8 @@ void main() {
     bool isCompleted = false,
     bool autoSnoozeEnabled = true,
     int autoSnoozeInterval = 5,
+    int autoSnoozeMaxCount = 5,
+    int autoSnoozeCount = 0,
     DateTime? dueDate,
   }) {
     return Reminder(
@@ -34,12 +36,14 @@ void main() {
       isCompleted: isCompleted,
       autoSnoozeEnabled: autoSnoozeEnabled,
       autoSnoozeInterval: autoSnoozeInterval,
+      autoSnoozeMaxCount: autoSnoozeMaxCount,
+      autoSnoozeCount: autoSnoozeCount,
       createdAt: fixedNow,
       updatedAt: fixedNow,
     );
   }
 
-  void stubScheduleAutoSnooze() {
+  void stubSchedule() {
     when(() => mockNotificationService.scheduleAutoSnooze(
           id: any(named: 'id'),
           title: any(named: 'title'),
@@ -50,13 +54,19 @@ void main() {
         )).thenAnswer((_) async => const Right(null));
   }
 
+  void stubCancel() {
+    when(() => mockNotificationService.cancelNotification(any()))
+        .thenAnswer((_) async => const Right(null));
+  }
+
   group('scheduleNextSnooze', () {
-    test('schedules notification for overdue reminder with payload',
-        () async {
-      stubScheduleAutoSnooze();
+    test('schedules and returns incremented count', () async {
+      stubSchedule();
 
-      await scheduler.scheduleNextSnooze(makeReminder());
+      final count =
+          await scheduler.scheduleNextSnooze(makeReminder(autoSnoozeCount: 2));
 
+      expect(count, 3);
       verify(() => mockNotificationService.scheduleAutoSnooze(
             id: any(named: 'id'),
             title: 'Reminder: Test',
@@ -67,40 +77,16 @@ void main() {
           )).called(1);
     });
 
-    test('cancels snooze for completed reminder', () async {
-      when(() => mockNotificationService.cancelNotification(any()))
-          .thenAnswer((_) async => const Right(null));
+    test('stops scheduling when count reaches max', () async {
+      stubCancel();
 
-      await scheduler.scheduleNextSnooze(makeReminder(isCompleted: true));
-
-      verify(() => mockNotificationService.cancelNotification(any()))
-          .called(1);
-      verifyNever(() => mockNotificationService.scheduleAutoSnooze(
-            id: any(named: 'id'),
-            title: any(named: 'title'),
-            body: any(named: 'body'),
-            startDate: any(named: 'startDate'),
-            intervalMinutes: any(named: 'intervalMinutes'),
-            payload: any(named: 'payload'),
-          ));
-    });
-
-    test('cancels snooze when auto-snooze is disabled', () async {
-      when(() => mockNotificationService.cancelNotification(any()))
-          .thenAnswer((_) async => const Right(null));
-
-      await scheduler
-          .scheduleNextSnooze(makeReminder(autoSnoozeEnabled: false));
-
-      verify(() => mockNotificationService.cancelNotification(any()))
-          .called(1);
-    });
-
-    test('does nothing for future (not yet overdue) reminder', () async {
-      await scheduler.scheduleNextSnooze(
-        makeReminder(dueDate: DateTime(2025, 6, 16)),
+      final count = await scheduler.scheduleNextSnooze(
+        makeReminder(autoSnoozeMaxCount: 5, autoSnoozeCount: 5),
       );
 
+      expect(count, 5); // unchanged
+      verify(() => mockNotificationService.cancelNotification(any()))
+          .called(1);
       verifyNever(() => mockNotificationService.scheduleAutoSnooze(
             id: any(named: 'id'),
             title: any(named: 'title'),
@@ -109,68 +95,114 @@ void main() {
             intervalMinutes: any(named: 'intervalMinutes'),
             payload: any(named: 'payload'),
           ));
-      verifyNever(
-          () => mockNotificationService.cancelNotification(any()));
     });
 
-    test('uses custom auto-snooze interval', () async {
-      stubScheduleAutoSnooze();
+    test('schedules indefinitely when maxCount is 0', () async {
+      stubSchedule();
 
-      await scheduler
-          .scheduleNextSnooze(makeReminder(autoSnoozeInterval: 15));
+      final count = await scheduler.scheduleNextSnooze(
+        makeReminder(autoSnoozeMaxCount: 0, autoSnoozeCount: 100),
+      );
 
+      expect(count, 101);
       verify(() => mockNotificationService.scheduleAutoSnooze(
             id: any(named: 'id'),
             title: any(named: 'title'),
             body: any(named: 'body'),
-            startDate: fixedNow.add(const Duration(minutes: 15)),
-            intervalMinutes: 15,
+            startDate: any(named: 'startDate'),
+            intervalMinutes: any(named: 'intervalMinutes'),
             payload: any(named: 'payload'),
           )).called(1);
     });
-  });
 
-  group('cancelSnooze', () {
-    test('cancels notification with correct ID', () async {
-      when(() => mockNotificationService.cancelNotification(any()))
-          .thenAnswer((_) async => const Right(null));
+    test('cancels for completed reminder', () async {
+      stubCancel();
 
-      await scheduler.cancelSnooze('reminder-1');
+      final count =
+          await scheduler.scheduleNextSnooze(makeReminder(isCompleted: true));
 
+      expect(count, 0);
       verify(() => mockNotificationService.cancelNotification(any()))
           .called(1);
     });
+
+    test('does nothing for future reminder', () async {
+      final count = await scheduler.scheduleNextSnooze(
+        makeReminder(dueDate: DateTime(2025, 6, 16)),
+      );
+
+      expect(count, 0);
+      verifyNever(() => mockNotificationService.scheduleAutoSnooze(
+            id: any(named: 'id'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            startDate: any(named: 'startDate'),
+            intervalMinutes: any(named: 'intervalMinutes'),
+            payload: any(named: 'payload'),
+          ));
+    });
   });
 
-  group('syncAllSnoozes', () {
-    test('schedules snooze for overdue and cancels for non-overdue',
+  group('resnoozeAllOnLaunch', () {
+    test('resets count to 0 for overdue reminders and schedules them',
         () async {
-      stubScheduleAutoSnooze();
-      when(() => mockNotificationService.cancelNotification(any()))
-          .thenAnswer((_) async => const Right(null));
+      stubSchedule();
 
-      final overdueReminder = makeReminder();
-      final futureReminder = Reminder(
+      final overdue = makeReminder(autoSnoozeCount: 5);
+      final future = Reminder(
         id: 'reminder-2',
         title: 'Future',
         dueDate: DateTime(2025, 6, 16),
         autoSnoozeEnabled: true,
-        autoSnoozeInterval: 5,
         createdAt: fixedNow,
         updatedAt: fixedNow,
       );
 
-      await scheduler.syncAllSnoozes([overdueReminder, futureReminder]);
+      final result =
+          await scheduler.resnoozeAllOnLaunch([overdue, future]);
 
+      // Overdue reminder should have count reset to 0.
+      expect(result[0].autoSnoozeCount, 0);
+      expect(result[0].id, 'reminder-1');
+
+      // Future reminder unchanged.
+      expect(result[1].id, 'reminder-2');
+
+      // Only the overdue one gets scheduled.
       verify(() => mockNotificationService.scheduleAutoSnooze(
             id: any(named: 'id'),
-            title: 'Reminder: Test',
+            title: any(named: 'title'),
             body: any(named: 'body'),
             startDate: any(named: 'startDate'),
-            intervalMinutes: 5,
-            payload: 'reminder-1',
+            intervalMinutes: any(named: 'intervalMinutes'),
+            payload: any(named: 'payload'),
           )).called(1);
+    });
 
+    test('skips reminders with auto-snooze disabled', () async {
+      final disabled = makeReminder(autoSnoozeEnabled: false);
+      stubCancel();
+
+      final result = await scheduler.resnoozeAllOnLaunch([disabled]);
+
+      expect(result[0].autoSnoozeEnabled, false);
+      // cancelSnooze is called inside scheduleNextSnooze for disabled
+      // but no schedule call.
+      verifyNever(() => mockNotificationService.scheduleAutoSnooze(
+            id: any(named: 'id'),
+            title: any(named: 'title'),
+            body: any(named: 'body'),
+            startDate: any(named: 'startDate'),
+            intervalMinutes: any(named: 'intervalMinutes'),
+            payload: any(named: 'payload'),
+          ));
+    });
+  });
+
+  group('cancelSnooze', () {
+    test('cancels notification', () async {
+      stubCancel();
+      await scheduler.cancelSnooze('reminder-1');
       verify(() => mockNotificationService.cancelNotification(any()))
           .called(1);
     });

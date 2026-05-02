@@ -1,22 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:doit/features/reminder/domain/entities/recurrence_rule.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 
 void main() {
   final now = DateTime(2025, 6, 15, 10, 0);
 
   Reminder makeReminder({
-    String repeatInterval = 'none',
+    RecurrenceRule recurrenceRule = const RecurrenceRule(),
     bool isCompleted = false,
     DateTime? dueDate,
     bool autoSnoozeEnabled = true,
+    int autoSnoozeMaxCount = 5,
+    int autoSnoozeCount = 0,
   }) {
     return Reminder(
       id: '1',
       title: 'Test',
       dueDate: dueDate ?? now,
       isCompleted: isCompleted,
-      repeatInterval: repeatInterval,
+      recurrenceRule: recurrenceRule,
       autoSnoozeEnabled: autoSnoozeEnabled,
+      autoSnoozeMaxCount: autoSnoozeMaxCount,
+      autoSnoozeCount: autoSnoozeCount,
       createdAt: now,
       updatedAt: now,
     );
@@ -44,54 +49,64 @@ void main() {
 
   group('isRecurring', () {
     test('returns false for none', () {
-      expect(makeReminder(repeatInterval: 'none').isRecurring, false);
+      expect(makeReminder().isRecurring, false);
     });
 
     test('returns true for daily', () {
-      expect(makeReminder(repeatInterval: 'daily').isRecurring, true);
+      expect(
+        makeReminder(recurrenceRule: RecurrenceRule.daily).isRecurring,
+        true,
+      );
+    });
+  });
+
+  group('isAutoSnoozeLimitReached', () {
+    test('returns false when count < max', () {
+      final r = makeReminder(autoSnoozeMaxCount: 5, autoSnoozeCount: 3);
+      expect(r.isAutoSnoozeLimitReached, false);
     });
 
-    test('returns true for weekly', () {
-      expect(makeReminder(repeatInterval: 'weekly').isRecurring, true);
+    test('returns true when count >= max', () {
+      final r = makeReminder(autoSnoozeMaxCount: 5, autoSnoozeCount: 5);
+      expect(r.isAutoSnoozeLimitReached, true);
     });
 
-    test('returns true for monthly', () {
-      expect(makeReminder(repeatInterval: 'monthly').isRecurring, true);
+    test('returns true when count > max', () {
+      final r = makeReminder(autoSnoozeMaxCount: 5, autoSnoozeCount: 7);
+      expect(r.isAutoSnoozeLimitReached, true);
     });
 
-    test('returns true for yearly', () {
-      expect(makeReminder(repeatInterval: 'yearly').isRecurring, true);
+    test('returns false when max is 0 (indefinite)', () {
+      final r = makeReminder(autoSnoozeMaxCount: 0, autoSnoozeCount: 100);
+      expect(r.isAutoSnoozeLimitReached, false);
     });
   });
 
   group('nextOccurrence', () {
     test('returns null for non-recurring', () {
-      expect(makeReminder(repeatInterval: 'none').nextOccurrence(), isNull);
+      expect(makeReminder().nextOccurrence(), isNull);
     });
 
-    test('returns next day for daily', () {
-      final reminder = makeReminder(repeatInterval: 'daily');
-      expect(reminder.nextOccurrence(), DateTime(2025, 6, 16, 10, 0));
+    test('delegates to recurrence rule', () {
+      final r = makeReminder(recurrenceRule: RecurrenceRule.daily);
+      expect(r.nextOccurrence(), DateTime(2025, 6, 16, 10, 0));
     });
 
-    test('returns next week for weekly', () {
-      final reminder = makeReminder(repeatInterval: 'weekly');
-      expect(reminder.nextOccurrence(), DateTime(2025, 6, 22, 10, 0));
+    test('complex rule: 3rd Wednesday', () {
+      final r = makeReminder(
+        recurrenceRule:
+            RecurrenceRule.nthWeekdayOfMonth(3, DateTime.wednesday),
+      );
+      final next = r.nextOccurrence();
+      // June 15 is Sunday. 3rd Wed of June = June 18.
+      expect(next, DateTime(2025, 6, 18, 10, 0));
     });
+  });
 
-    test('returns next month for monthly', () {
-      final reminder = makeReminder(repeatInterval: 'monthly');
-      expect(reminder.nextOccurrence(), DateTime(2025, 7, 15, 10, 0));
-    });
-
-    test('returns next year for yearly', () {
-      final reminder = makeReminder(repeatInterval: 'yearly');
-      expect(reminder.nextOccurrence(), DateTime(2026, 6, 15, 10, 0));
-    });
-
-    test('returns null for unknown interval', () {
-      final reminder = makeReminder(repeatInterval: 'biweekly');
-      expect(reminder.nextOccurrence(), isNull);
+  group('repeatInterval legacy getter', () {
+    test('returns frequency from recurrence rule', () {
+      final r = makeReminder(recurrenceRule: RecurrenceRule.weekly);
+      expect(r.repeatInterval, 'weekly');
     });
   });
 
@@ -105,13 +120,13 @@ void main() {
       final reminder = makeReminder();
       final updated = reminder.copyWith(
         title: 'Updated',
-        autoSnoozeEnabled: false,
-        autoSnoozeInterval: 15,
+        autoSnoozeMaxCount: 10,
+        autoSnoozeCount: 3,
       );
       expect(updated.title, 'Updated');
-      expect(updated.autoSnoozeEnabled, false);
-      expect(updated.autoSnoozeInterval, 15);
-      expect(updated.id, reminder.id); // unchanged
+      expect(updated.autoSnoozeMaxCount, 10);
+      expect(updated.autoSnoozeCount, 3);
+      expect(updated.id, reminder.id);
     });
   });
 }

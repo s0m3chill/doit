@@ -1,15 +1,18 @@
 import 'package:equatable/equatable.dart';
+import 'package:doit/features/reminder/domain/entities/recurrence_rule.dart';
 
 /// Core domain entity representing a reminder.
-/// This is the heart of the app — no framework dependencies here.
+/// No framework dependencies.
 class Reminder extends Equatable {
   final String id;
   final String title;
   final DateTime dueDate;
   final bool isCompleted;
-  final String repeatInterval; // none, daily, weekly, monthly, yearly
+  final RecurrenceRule recurrenceRule;
   final bool autoSnoozeEnabled;
   final int autoSnoozeInterval; // minutes between auto-snooze nags
+  final int autoSnoozeMaxCount; // max nags before stopping (0 = indefinite)
+  final int autoSnoozeCount; // how many times auto-snooze has fired
   final int? snoozeMinutes;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -19,9 +22,11 @@ class Reminder extends Equatable {
     required this.title,
     required this.dueDate,
     this.isCompleted = false,
-    this.repeatInterval = 'none',
+    this.recurrenceRule = const RecurrenceRule(),
     this.autoSnoozeEnabled = true,
     this.autoSnoozeInterval = 5,
+    this.autoSnoozeMaxCount = 5,
+    this.autoSnoozeCount = 0,
     this.snoozeMinutes,
     required this.createdAt,
     required this.updatedAt,
@@ -31,46 +36,31 @@ class Reminder extends Equatable {
   bool isOverdue(DateTime now) => !isCompleted && dueDate.isBefore(now);
 
   /// Whether this reminder is a recurring one.
-  bool get isRecurring => repeatInterval != 'none';
+  bool get isRecurring => recurrenceRule.isRecurring;
 
-  /// Compute the next due date based on the repeat interval.
-  /// Returns null if not recurring.
-  DateTime? nextOccurrence() {
-    if (!isRecurring) return null;
-    switch (repeatInterval) {
-      case 'daily':
-        return dueDate.add(const Duration(days: 1));
-      case 'weekly':
-        return dueDate.add(const Duration(days: 7));
-      case 'monthly':
-        return DateTime(
-          dueDate.year,
-          dueDate.month + 1,
-          dueDate.day,
-          dueDate.hour,
-          dueDate.minute,
-        );
-      case 'yearly':
-        return DateTime(
-          dueDate.year + 1,
-          dueDate.month,
-          dueDate.day,
-          dueDate.hour,
-          dueDate.minute,
-        );
-      default:
-        return null;
-    }
-  }
+  /// Whether auto-snooze has reached its limit.
+  /// Returns false if max count is 0 (indefinite).
+  bool get isAutoSnoozeLimitReached =>
+      autoSnoozeMaxCount > 0 && autoSnoozeCount >= autoSnoozeMaxCount;
+
+  /// Compute the next due date based on the recurrence rule.
+  DateTime? nextOccurrence() => recurrenceRule.nextOccurrence(dueDate);
+
+  // ── Legacy compatibility ──
+  // The old `repeatInterval` string is still used in some places.
+  // This getter maps from RecurrenceRule back to the simple string.
+  String get repeatInterval => recurrenceRule.frequency;
 
   Reminder copyWith({
     String? id,
     String? title,
     DateTime? dueDate,
     bool? isCompleted,
-    String? repeatInterval,
+    RecurrenceRule? recurrenceRule,
     bool? autoSnoozeEnabled,
     int? autoSnoozeInterval,
+    int? autoSnoozeMaxCount,
+    int? autoSnoozeCount,
     int? snoozeMinutes,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -80,9 +70,11 @@ class Reminder extends Equatable {
       title: title ?? this.title,
       dueDate: dueDate ?? this.dueDate,
       isCompleted: isCompleted ?? this.isCompleted,
-      repeatInterval: repeatInterval ?? this.repeatInterval,
+      recurrenceRule: recurrenceRule ?? this.recurrenceRule,
       autoSnoozeEnabled: autoSnoozeEnabled ?? this.autoSnoozeEnabled,
       autoSnoozeInterval: autoSnoozeInterval ?? this.autoSnoozeInterval,
+      autoSnoozeMaxCount: autoSnoozeMaxCount ?? this.autoSnoozeMaxCount,
+      autoSnoozeCount: autoSnoozeCount ?? this.autoSnoozeCount,
       snoozeMinutes: snoozeMinutes ?? this.snoozeMinutes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -91,15 +83,8 @@ class Reminder extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        dueDate,
-        isCompleted,
-        repeatInterval,
-        autoSnoozeEnabled,
-        autoSnoozeInterval,
-        snoozeMinutes,
-        createdAt,
-        updatedAt,
+        id, title, dueDate, isCompleted, recurrenceRule,
+        autoSnoozeEnabled, autoSnoozeInterval, autoSnoozeMaxCount,
+        autoSnoozeCount, snoozeMinutes, createdAt, updatedAt,
       ];
 }

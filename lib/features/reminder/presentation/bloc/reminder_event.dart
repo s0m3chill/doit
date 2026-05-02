@@ -25,6 +25,7 @@ class AddReminder extends ReminderEvent {
   final String repeatInterval;
   final bool autoSnoozeEnabled;
   final int autoSnoozeInterval;
+  final int autoSnoozeMaxCount;
 
   const AddReminder({
     required this.title,
@@ -32,11 +33,13 @@ class AddReminder extends ReminderEvent {
     this.repeatInterval = 'none',
     this.autoSnoozeEnabled = true,
     this.autoSnoozeInterval = 5,
+    this.autoSnoozeMaxCount = 5,
   });
 
   @override
   List<Object?> get props =>
-      [title, dueDate, repeatInterval, autoSnoozeEnabled, autoSnoozeInterval];
+      [title, dueDate, repeatInterval, autoSnoozeEnabled, autoSnoozeInterval,
+       autoSnoozeMaxCount];
 }
 
 class EditReminder extends ReminderEvent {
@@ -46,6 +49,7 @@ class EditReminder extends ReminderEvent {
   final String repeatInterval;
   final bool autoSnoozeEnabled;
   final int autoSnoozeInterval;
+  final int autoSnoozeMaxCount;
 
   const EditReminder({
     required this.id,
@@ -54,11 +58,13 @@ class EditReminder extends ReminderEvent {
     this.repeatInterval = 'none',
     this.autoSnoozeEnabled = true,
     this.autoSnoozeInterval = 5,
+    this.autoSnoozeMaxCount = 5,
   });
 
   @override
   List<Object?> get props =>
-      [id, title, dueDate, repeatInterval, autoSnoozeEnabled, autoSnoozeInterval];
+      [id, title, dueDate, repeatInterval, autoSnoozeEnabled, autoSnoozeInterval,
+       autoSnoozeMaxCount];
 }
 
 class RemoveReminder extends ReminderEvent {

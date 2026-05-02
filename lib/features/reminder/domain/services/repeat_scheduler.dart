@@ -1,7 +1,6 @@
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 
 /// Pure domain service — computes the next reminder for recurring reminders.
-/// No side effects, no dependencies on infrastructure.
 class RepeatScheduler {
   /// Given a completed recurring reminder, produce the next occurrence.
   /// Returns null if the reminder is not recurring.
@@ -18,9 +17,11 @@ class RepeatScheduler {
       title: completed.title,
       dueDate: nextDue,
       isCompleted: false,
-      repeatInterval: completed.repeatInterval,
+      recurrenceRule: completed.recurrenceRule,
       autoSnoozeEnabled: completed.autoSnoozeEnabled,
       autoSnoozeInterval: completed.autoSnoozeInterval,
+      autoSnoozeMaxCount: completed.autoSnoozeMaxCount,
+      autoSnoozeCount: 0, // Reset for the new occurrence.
       createdAt: now,
       updatedAt: now,
     );

@@ -3,7 +3,6 @@ import 'package:path/path.dart';
 import 'package:doit/core/constants/app_constants.dart';
 
 /// Manages SQLite database lifecycle.
-/// Single responsibility: open, create tables, provide the database instance.
 class DatabaseHelper {
   Database? _database;
 
@@ -32,8 +31,11 @@ class DatabaseHelper {
         due_date INTEGER NOT NULL,
         is_completed INTEGER NOT NULL DEFAULT 0,
         repeat_interval TEXT NOT NULL DEFAULT 'none',
+        recurrence_rule TEXT,
         auto_snooze_enabled INTEGER NOT NULL DEFAULT 1,
         auto_snooze_interval INTEGER NOT NULL DEFAULT 5,
+        auto_snooze_max_count INTEGER NOT NULL DEFAULT 5,
+        auto_snooze_count INTEGER NOT NULL DEFAULT 0,
         snooze_minutes INTEGER,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL

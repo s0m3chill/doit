@@ -2,9 +2,12 @@ import 'package:doit/core/services/auto_snooze_scheduler.dart';
 import 'package:doit/core/services/notification_service.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 
-/// Concrete auto-snooze scheduler.
-/// For each overdue reminder with auto-snooze enabled, schedules the next
-/// notification [autoSnoozeInterval] minutes from now.
+/// Concrete auto-snooze scheduler with repeat count limits.
+///
+/// Due's behavior:
+/// - By default, auto snooze repeats 5 times (configurable up to 10).
+/// - On app launch or acting on any notification, Due re-snoozes all
+///   overdue items indefinitely (resets the count).
 class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
   final NotificationService notificationService;
   final DateTime Function() _now;
@@ -17,14 +20,20 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
   }) : _now = now ?? DateTime.now;
 
   @override
-  Future<void> scheduleNextSnooze(Reminder reminder) async {
+  Future<int> scheduleNextSnooze(Reminder reminder) async {
     if (!reminder.autoSnoozeEnabled || reminder.isCompleted) {
       await cancelSnooze(reminder.id);
-      return;
+      return reminder.autoSnoozeCount;
     }
 
     final currentTime = _now();
-    if (!reminder.isOverdue(currentTime)) return;
+    if (!reminder.isOverdue(currentTime)) return reminder.autoSnoozeCount;
+
+    // Check if we've hit the limit (0 = indefinite).
+    if (reminder.isAutoSnoozeLimitReached) {
+      await cancelSnooze(reminder.id);
+      return reminder.autoSnoozeCount;
+    }
 
     final notificationId = _autoSnoozeNotificationId(reminder.id);
     final nextSnoozeTime = currentTime.add(
@@ -39,6 +48,8 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
       intervalMinutes: reminder.autoSnoozeInterval,
       payload: reminder.id,
     );
+
+    return reminder.autoSnoozeCount + 1;
   }
 
   @override
@@ -56,6 +67,23 @@ class AutoSnoozeSchedulerImpl implements AutoSnoozeScheduler {
         await cancelSnooze(reminder.id);
       }
     }
+  }
+
+  @override
+  Future<List<Reminder>> resnoozeAllOnLaunch(
+      List<Reminder> activeReminders) async {
+    final updated = <Reminder>[];
+    for (final reminder in activeReminders) {
+      if (reminder.autoSnoozeEnabled && reminder.isOverdue(_now())) {
+        // Reset count and schedule — on launch, Due snoozes indefinitely.
+        final reset = reminder.copyWith(autoSnoozeCount: 0);
+        await scheduleNextSnooze(reset);
+        updated.add(reset);
+      } else {
+        updated.add(reminder);
+      }
+    }
+    return updated;
   }
 
   int _autoSnoozeNotificationId(String reminderId) {

@@ -7,6 +7,7 @@ import 'package:doit/core/error/failures.dart';
 import 'package:doit/core/services/auto_snooze_scheduler.dart';
 import 'package:doit/core/services/notification_service.dart';
 import 'package:doit/core/usecases/usecase.dart';
+import 'package:doit/features/reminder/domain/entities/recurrence_rule.dart';
 import 'package:doit/features/reminder/domain/entities/reminder.dart';
 import 'package:doit/features/reminder/domain/services/repeat_scheduler.dart';
 import 'package:doit/features/reminder/domain/usecases/get_all_reminders.dart';
@@ -276,12 +277,14 @@ void main() {
       build: () {
         final recurringReminder = Reminder(
           id: '1', title: 'Daily Task', dueDate: now,
-          isCompleted: true, repeatInterval: 'daily',
+          isCompleted: true,
+          recurrenceRule: RecurrenceRule.daily,
           createdAt: now, updatedAt: now,
         );
         final nextReminder = Reminder(
           id: 'next-id', title: 'Daily Task',
-          dueDate: DateTime(2025, 1, 2), repeatInterval: 'daily',
+          dueDate: DateTime(2025, 1, 2),
+          recurrenceRule: RecurrenceRule.daily,
           createdAt: now, updatedAt: now,
         );
 
